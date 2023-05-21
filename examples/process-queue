@@ -15,7 +15,7 @@ use Kew\Job;
 use Kew\Queue;
 use Kew\SystemClock;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require \dirname(__DIR__) . '/vendor/autoload.php';
 
 class UnhandledJobException extends \Exception
 {
@@ -30,7 +30,7 @@ class ExampleWorker extends AbstractWorker
     {
         echo match ($job->getQueueable()->getName()) {
             ExampleQueueable::class => $job->getQueueable()->getPayload() . PHP_EOL,
-            default => throw new UnhandledJobException((string)$job->getId()),
+            default => throw new UnhandledJobException((string) $job->getId()),
         };
     }
 

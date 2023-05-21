@@ -13,7 +13,7 @@ use Kew\ExampleQueueable;
 use Kew\Queue;
 use Kew\SystemClock;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require \dirname(__DIR__) . '/vendor/autoload.php';
 
 $queue = new Queue(
     __DIR__ . '/queue.db',
