@@ -29,19 +29,11 @@ class Queue
         $this->initialiseDatabase($databaseFilename);
     }
 
-    /**
-     * @throws InvalidPayloadException
-     */
     public function addJob(
         QueueableInterface $queueable,
         ?\DateTimeImmutable $scheduledDateTime = null,
     ): void {
-        $data = json_encode(serialize(clone $queueable));
-
-        if (JSON_ERROR_NONE !== json_last_error()) {
-            throw new InvalidPayloadException(json_last_error_msg());
-        }
-
+        $data = serialize(clone $queueable);
         $scheduledDateTime ??= $this->clock->now();
         $formattedScheduledDateTime = $scheduledDateTime->format(
             self::TIMESTAMP_FORMAT,
@@ -61,7 +53,7 @@ class Queue
     {
         $timestamp = $timestamp->format(self::TIMESTAMP_FORMAT);
         $statement = $this->database->prepare(
-            'SELECT * FROM jobs
+            'SELECT id, attempts, data FROM jobs
                 WHERE reserved_at IS NULL
                     AND available_at IS NOT NULL
                     AND available_at <= :available_at
@@ -77,13 +69,13 @@ class Queue
             return null;
         }
 
-        $queueable = unserialize(json_decode($results[0]['data']));
+        /** @var array{ id: int, attempts: int, data: string } $result */
+        $result = $results[0];
 
-        return new Job(
-            (int) $results[0]['id'],
-            $queueable,
-            (int) $results[0]['attempts'],
-        );
+        /** @var QueueableInterface $queueable */
+        $queueable = unserialize($result['data']);
+
+        return new Job($result['id'], $queueable, $result['attempts']);
     }
 
     public function markJobAsCompleted(Job $job): void
