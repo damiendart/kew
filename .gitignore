@@ -3,6 +3,7 @@
 # please refer to the accompanying "LICENCE" file.
 
 .php-cs-fixer.cache
+.phpunit.cache
 composer.lock
 examples/queue.db
 vendor
