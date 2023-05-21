@@ -1,0 +1,12 @@
+{
+  "autoload": {
+    "psr-4": {
+      "Kew\\": "src/"
+    }
+  },
+  "require": {
+    "ext-pdo": "*",
+    "php": "^8.2",
+    "psr/clock": "^1.0"
+  }
+}

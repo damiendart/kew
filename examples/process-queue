@@ -1,0 +1,49 @@
+#!/usr/bin/env php8.2
+<?php
+
+/*
+ * Copyright (C) 2023 Damien Dart, <damiendart@pobox.com>.
+ * This file is distributed under the MIT licence. For more information,
+ * please refer to the accompanying "LICENCE" file.
+ */
+
+declare(strict_types=1);
+
+use Kew\AbstractWorker;
+use Kew\ExampleQueueable;
+use Kew\Job;
+use Kew\Queue;
+use Kew\SystemClock;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+class UnhandledJobException extends \Exception
+{
+}
+
+class ExampleWorker extends AbstractWorker
+{
+    /**
+     * @throws Exception
+     */
+    protected function handleJob(Job $job): void
+    {
+        echo match ($job->getQueueable()->getName()) {
+            ExampleQueueable::class => $job->getQueueable()->getPayload() . PHP_EOL,
+            default => throw new UnhandledJobException((string)$job->getId()),
+        };
+    }
+
+    /**
+     * @throws Throwable
+     */
+    protected function handleFailedJob(Job $job, Throwable $throwable): void
+    {
+        throw $throwable;
+    }
+}
+
+$queue = new Queue(__DIR__ . '/queue.db', new SystemClock());
+$worker = new ExampleWorker($queue, new SystemClock());
+
+$worker->processJobs();
