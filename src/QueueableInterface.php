@@ -12,7 +12,5 @@ namespace Kew;
 
 interface QueueableInterface
 {
-    public function getName(): string;
-
     public function getPayload(): mixed;
 }

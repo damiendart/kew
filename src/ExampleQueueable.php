@@ -12,11 +12,6 @@ namespace Kew;
 
 class ExampleQueueable implements QueueableInterface
 {
-    public function getName(): string
-    {
-        return $this::class;
-    }
-
     public function getPayload(): string
     {
         return 'Hey!';

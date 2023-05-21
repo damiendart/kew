@@ -28,16 +28,11 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleJob(Job $job): void
     {
-        switch ($job->getQueueable()->getName()) {
-            case ExampleQueueable::class:
-                /** @var ExampleQueueable $queueable */
-                $queueable = $job->getQueueable();
+        $queueable = $job->getQueueable();
 
-                echo $queueable->getPayload() . PHP_EOL;
-                break;
-
-            default:
-                throw new UnhandledJobException((string) $job->getId());
+        echo match ($queueable::class) {
+            ExampleQueueable::class => $queueable->getPayload() . PHP_EOL,
+            default => throw new UnhandledJobException((string) $job->getId()),
         };
     }
 
