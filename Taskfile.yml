@@ -1,0 +1,96 @@
+# Copyright (c) 2023 Damien Dart, <damiendart@pobox.com>.
+# This file is distributed under the MIT licence. For more information,
+# please refer to the accompanying "LICENCE" file.
+
+---
+version: '3'
+
+output: 'prefixed'
+
+tasks:
+  default:
+    deps:
+      - task: 'ci'
+
+  ci:
+    cmds:
+      - task: 'clean'
+      - task: 'dependencies'
+      - task: 'lint'
+      - task: 'static-analysis'
+      - task: 'test'
+    desc: 'Run all CI-related tasks'
+
+  clean:
+    cmds:
+      - 'rm -fr composer.lock coverage vendor'
+    desc: 'Delete all code coverage reports, third-party dependencies, and lock files'
+
+  coverage:
+    cmds:
+      - task: 'coverage:php'
+    desc: 'Run all code-coverage-related tasks'
+
+  coverage:php:
+    cmds:
+      - 'vendor/bin/phpunit --coverage-html=coverage/html --coverage-text=coverage/report.txt'
+    desc: 'Run PHP tests and generate a code coverage reports with PHPUnit'
+    env:
+      XDEBUG_MODE: 'coverage'
+
+  coverage:serve:
+    cmds:
+      - task: 'coverage'
+      - 'php -S localhost:8000 -t coverage/html'
+    desc: 'Run all code-coverage-related tasks and run a basic web server for viewing HTML-based reports'
+
+  dependencies:
+    cmds:
+      - task: 'dependencies:php'
+    desc: 'Run all dependency-installing-related tasks'
+
+  dependencies:php:
+    cmds:
+      - 'composer update --no-ansi --no-interaction --no-progress --prefer-dist {{ .COMPOSER_ADDITIONAL_FLAGS }}'
+    desc: 'Install PHP dependencies'
+
+  lint:
+    cmds:
+      - task: 'lint:php'
+    desc: 'Run all linting-related tasks'
+
+  lint:php:
+    cmds:
+      - 'vendor/bin/php-cs-fixer fix --allow-risky=yes --diff --dry-run --verbose'
+    desc: 'Lint PHP files with PHP Coding Standards Fixer'
+
+  static-analysis:
+    cmds:
+      - task: 'static-analysis:php'
+    desc: 'Run all static-analysis-related tasks'
+
+  static-analysis:php:
+    cmds:
+      - task: 'static-analysis:php:phpstan'
+      - task: 'static-analysis:php:psalm'
+    desc: 'Run all PHP static-analysis-related tasks'
+
+  static-analysis:php:phpstan:
+    cmds:
+      - 'vendor/bin/phpstan analyse --no-progress'
+    desc: 'Analyse PHP files with PHPStan'
+
+  static-analysis:php:psalm:
+    cmds:
+      - 'vendor/bin/psalm --no-diff --show-info=true --stats'
+    desc: 'Analyse PHP files with Psalm'
+
+  test:
+    cmds:
+      - task: 'test:php'
+    desc: 'Run all testing-related tasks'
+
+  test:php:
+    cmds:
+      - 'vendor/bin/phpunit --testdox'
+    desc: 'Run PHP tests with PHPUnit'
