@@ -1,0 +1,44 @@
+# Copyright (c) 2023 Damien Dart, <damiendart@pobox.com>.
+# This file is distributed under the MIT licence. For more information,
+# please refer to the accompanying "LICENCE" file.
+
+---
+name: 'Lint, Analyse, and Test Project'
+
+on:
+  push:
+    branches:
+      - 'master'
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  lint-analyse-and-test:
+    env:
+      COMPOSER_ADDITIONAL_FLAGS: '--${{ matrix.stability }}'
+    name: 'Lint, analyse, and test project (PHP ${{ matrix.php.php-version }}, ${{ matrix.stability }})'
+    runs-on: 'ubuntu-20.04'
+    steps:
+      - name: 'Check out repository'
+        uses: 'actions/checkout@v3'
+
+      - name: 'Set up PHP environment'
+        uses: 'shivammathur/setup-php@v2'
+        with:
+          php-version: '${{ matrix.php.php-version }}'
+
+      - name: 'Install Task'
+        run: 'curl -sL https://taskfile.dev/install.sh | sh'
+
+      - name: 'Download project dependencies and run all linting, static analysis, and testing tasks'
+        run: './bin/task ci'
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: '${{ matrix.php.PHP_CS_FIXER_IGNORE_ENV }}'
+    strategy:
+      fail-fast: true
+      matrix:
+        php:
+          - php-version: '8.2'
+        stability:
+          - 'prefer-lowest'
+          - 'prefer-stable'
