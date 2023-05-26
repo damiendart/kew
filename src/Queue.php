@@ -151,6 +151,7 @@ class Queue
     {
         $this->database = new \PDO('sqlite:' . $filename);
 
+        $this->database->exec('PRAGMA journal_mode=WAL');
         $this->database->exec(
             'CREATE TABLE IF NOT EXISTS jobs(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
