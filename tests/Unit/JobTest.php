@@ -39,7 +39,7 @@ class JobTest extends TestCase
         $this->assertEquals(2, $job->getAttempts());
     }
 
-    public function testFailingAJob(): void
+    public function testSettingAJobAsFailed(): void
     {
         $job = new Job(
             1,
