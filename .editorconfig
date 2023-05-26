@@ -12,5 +12,5 @@ indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[{*.php,add-job-to-queue,process-queue}]
+[*.php]
 indent_size = 4

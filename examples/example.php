@@ -1,4 +1,3 @@
-#!/usr/bin/env php8.2
 <?php
 
 /*
@@ -10,9 +9,9 @@
 declare(strict_types=1);
 
 use Kew\AbstractWorker;
-use Kew\ExampleQueueable;
 use Kew\Job;
 use Kew\Queue;
+use Kew\QueueableInterface;
 use Kew\SystemClock;
 
 require \dirname(__DIR__) . '/vendor/autoload.php';
@@ -21,10 +20,18 @@ class UnhandledJobException extends \Exception
 {
 }
 
+class ExampleQueueable implements QueueableInterface
+{
+    public function getPayload(): string
+    {
+        return 'Hey!';
+    }
+}
+
 class ExampleWorker extends AbstractWorker
 {
     /**
-     * @throws Exception
+     * @throws UnhandledJobException
      */
     protected function handleJob(Job $job): void
     {
@@ -45,7 +52,17 @@ class ExampleWorker extends AbstractWorker
     }
 }
 
-$queue = new Queue(__DIR__ . '/queue.db', new SystemClock());
+$queue = new Queue(':memory:', new SystemClock());
 $worker = new ExampleWorker($queue, new SystemClock());
+
+$queue->addJob(new ExampleQueueable());
+$queue->addJob(
+    new ExampleQueueable(),
+    new DateTimeImmutable('+2 seconds'),
+);
+
+$worker->processJobs();
+
+sleep(2);
 
 $worker->processJobs();

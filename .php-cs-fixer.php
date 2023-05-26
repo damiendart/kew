@@ -44,7 +44,5 @@ return (new PhpCsFixer\Config())
         PhpCsFixer\Finder::create()
             ->in(__DIR__ . DIRECTORY_SEPARATOR . 'examples')
             ->in(__DIR__ . DIRECTORY_SEPARATOR . 'src')
-            ->name('*.php')
-            ->name('add-job-to-queue')
-            ->name('process-queue')
+            ->name('*.php'),
     );

@@ -16,7 +16,5 @@
   <projectFiles>
     <directory name="examples" />
     <directory name="src" />
-    <file name="examples/add-job-to-queue" />
-    <file name="examples/process-queue" />
   </projectFiles>
 </psalm>
