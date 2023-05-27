@@ -18,6 +18,8 @@
     "friendsofphp/php-cs-fixer": "^3.16",
     "vimeo/psalm": "^5.11",
     "phpstan/phpstan": "^1.10",
-    "phpunit/phpunit": "^10.1"
+    "phpunit/phpunit": "^10.1",
+    "psr/log": "^3.0",
+    "monolog/monolog": "^3.3"
   }
 }

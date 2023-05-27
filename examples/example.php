@@ -13,6 +13,11 @@ use Kew\Job;
 use Kew\Queue;
 use Kew\QueueableInterface;
 use Kew\SystemClock;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use Monolog\Processor\PsrLogMessageProcessor;
+use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 
 require \dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -30,11 +35,30 @@ class ExampleQueueable implements QueueableInterface
 
 class ExampleWorker extends AbstractWorker
 {
+    public function __construct(
+        protected Queue $queue,
+        protected ClockInterface $clock,
+        private LoggerInterface $logger,
+    ) {
+        parent::__construct($queue, $clock);
+    }
+
+    public function processJobs(): void
+    {
+        $this->logger->info('Processing jobs');
+
+        parent::processJobs();
+
+        $this->logger->info('Finished processing jobs');
+    }
+
     /**
      * @throws UnhandledJobException
      */
     protected function handleJob(Job $job): void
     {
+        $this->logger->info('Processing job #{id}', ['id' => $job->getId()]);
+
         $queueable = $job->getQueueable();
 
         echo match ($queueable::class) {
@@ -48,12 +72,16 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleFailedJob(Job $job, Throwable $throwable): void
     {
-        throw $throwable;
+        $this->logger->error('Job #{id} failed!', ['id' => $job->getId()]);
     }
 }
 
+$logger = new Logger('worker');
 $queue = new Queue(':memory:', new SystemClock());
-$worker = new ExampleWorker($queue, new SystemClock());
+$worker = new ExampleWorker($queue, new SystemClock(), $logger);
+
+$logger->pushHandler(new StreamHandler('php://stdout'));
+$logger->pushProcessor(new PsrLogMessageProcessor());
 
 $queue->addJob(new ExampleQueueable());
 $queue->addJob(

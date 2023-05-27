@@ -19,8 +19,8 @@ abstract class AbstractWorker
     abstract protected function handleFailedJob(Job $job, \Throwable $throwable): void;
 
     public function __construct(
-        private Queue $queue,
-        private ClockInterface $clock,
+        protected Queue $queue,
+        protected ClockInterface $clock,
     ) {
     }
 
