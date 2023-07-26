@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Kew;
 
 use Psr\Clock\ClockInterface;
+use Ramsey\Uuid\UuidFactory;
 
 class Queue
 {
@@ -19,12 +20,15 @@ class Queue
 
     private ClockInterface $clock;
     private \PDO $database;
+    private UuidFactory $uuidFactory;
 
     public function __construct(
         string $databaseFilename,
         ClockInterface $clock,
+        UuidFactory $uuidFactory,
     ) {
         $this->clock = $clock;
+        $this->uuidFactory = $uuidFactory;
 
         $this->initialiseDatabase($databaseFilename);
     }
@@ -39,10 +43,13 @@ class Queue
             self::TIMESTAMP_FORMAT,
         );
         $statement = $this->database->prepare(
-            'INSERT INTO jobs (created_at, available_at, data)
-                VALUES (:created_at, :available_at, :data)',
+            'INSERT INTO jobs (id, created_at, available_at, data)
+                VALUES (:id, :created_at, :available_at, :data)',
         );
 
+        $uuid = $this->uuidFactory->uuid4()->toString();
+
+        $statement->bindParam(':id', $uuid);
         $statement->bindParam(':available_at', $formattedScheduledDateTime);
         $statement->bindParam(':created_at', $formattedScheduledDateTime);
         $statement->bindParam(':data', $data);
@@ -69,13 +76,17 @@ class Queue
             return null;
         }
 
-        /** @var array{ id: int, attempts: int, data: string } $result */
+        /** @var array{ id: string, attempts: int, data: string } $result */
         $result = $results[0];
 
         /** @var QueueableInterface $queueable */
         $queueable = unserialize($result['data']);
 
-        return new Job($result['id'], $queueable, $result['attempts']);
+        return new Job(
+            $this->uuidFactory->fromString($result['id']),
+            $queueable,
+            $result['attempts'],
+        );
     }
 
     public function markJobAsCompleted(Job $job): void
@@ -93,7 +104,7 @@ class Queue
                 WHERE id = :id',
         );
 
-        $statement->bindParam(':id', $jobId, \PDO::PARAM_INT);
+        $statement->bindParam(':id', $jobId);
         $statement->execute();
     }
 
@@ -111,7 +122,7 @@ class Queue
         );
 
         $statement->bindParam(':attempts', $attempts, \PDO::PARAM_INT);
-        $statement->bindParam(':id', $jobId, \PDO::PARAM_INT);
+        $statement->bindParam(':id', $jobId);
         $statement->bindParam(':reserved_at', $reservedTimestamp);
         $statement->execute();
     }
@@ -134,7 +145,7 @@ class Queue
         );
 
         $statement->bindParam(':available_at', $nextAttemptTimestamp);
-        $statement->bindParam(':id', $jobId, \PDO::PARAM_INT);
+        $statement->bindParam(':id', $jobId);
         $statement->execute();
     }
 
@@ -143,7 +154,7 @@ class Queue
         $jobId = $job->getId();
         $statement = $this->database->prepare('DELETE FROM jobs WHERE id = :id');
 
-        $statement->bindParam(':id', $jobId, \PDO::PARAM_INT);
+        $statement->bindParam(':id', $jobId);
         $statement->execute();
     }
 
@@ -154,7 +165,7 @@ class Queue
         $this->database->exec('PRAGMA journal_mode=WAL');
         $this->database->exec(
             'CREATE TABLE IF NOT EXISTS jobs(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT PRIMARY KEY UNIQUE,
                 created_at TEXT,
                 available_at TEXT,
                 reserved_at TEXT DEFAULT NULL,

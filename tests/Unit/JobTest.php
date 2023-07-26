@@ -14,13 +14,15 @@ use Kew\ExampleQueueable;
 use Kew\Job;
 use Kew\QueueableInterface;
 use PHPUnit\Framework\TestCase;
+use Ramsey\Uuid\UuidFactory;
 
 class JobTest extends TestCase
 {
     public function testAddingAttempts(): void
     {
+        $uuidFactory = new UuidFactory();
         $job = new Job(
-            1,
+            $uuidFactory->uuid4(),
             new class implements QueueableInterface {
                 public function getPayload(): string
                 {
@@ -41,8 +43,9 @@ class JobTest extends TestCase
 
     public function testSettingAJobAsFailed(): void
     {
+        $uuidFactory = new UuidFactory();
         $job = new Job(
-            1,
+            $uuidFactory->uuid4(),
             new class implements QueueableInterface {
                 public function getPayload(): string
                 {

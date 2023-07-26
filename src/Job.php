@@ -10,13 +10,15 @@ declare(strict_types=1);
 
 namespace Kew;
 
+use Ramsey\Uuid\UuidInterface;
+
 class Job
 {
     private bool $hasFailed = false;
 
     public function __construct(
-        private int $id,
-        private QueueableInterface $queueable,
+        private readonly UuidInterface $id,
+        private readonly QueueableInterface $queueable,
         private int $attempts,
     ) {
     }
@@ -40,7 +42,7 @@ class Job
         return $this->attempts;
     }
 
-    public function getId(): int
+    public function getId(): UuidInterface
     {
         return $this->id;
     }

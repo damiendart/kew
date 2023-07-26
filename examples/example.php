@@ -18,6 +18,7 @@ use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Ramsey\Uuid\UuidFactory;
 
 require \dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -57,7 +58,7 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleJob(Job $job): void
     {
-        $this->logger->info('Processing job #{id}', ['id' => $job->getId()]);
+        $this->logger->info('Processing job {id}', ['id' => $job->getId()]);
 
         $queueable = $job->getQueueable();
 
@@ -72,12 +73,12 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleFailedJob(Job $job, Throwable $throwable): void
     {
-        $this->logger->error('Job #{id} failed!', ['id' => $job->getId()]);
+        $this->logger->error('Job {id} failed!', ['id' => $job->getId()]);
     }
 }
 
 $logger = new Logger('worker');
-$queue = new Queue(':memory:', new SystemClock());
+$queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 $worker = new ExampleWorker($queue, new SystemClock(), $logger);
 
 $logger->pushHandler(new StreamHandler('php://stdout'));
