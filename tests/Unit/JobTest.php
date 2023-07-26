@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Kew\Tests\Unit;
 
-use Kew\ExampleQueueable;
 use Kew\Job;
 use Kew\QueueableInterface;
 use PHPUnit\Framework\TestCase;

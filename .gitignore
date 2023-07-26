@@ -6,5 +6,5 @@
 .phpunit.cache
 composer.lock
 coverage
-examples/queue.db
+*.db
 vendor
