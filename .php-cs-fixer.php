@@ -34,6 +34,8 @@ return (new PhpCsFixer\Config())
             ],
             'ordered_imports' => ['sort_algorithm' => 'alpha'],
             'phpdoc_align' => ['align' => 'left'],
+            'php_unit_method_casing' => ['case' => 'snake_case'],
+            'php_unit_test_class_requires_covers' => true,
             'trailing_comma_in_multiline' => [
                 'elements' => ['arrays', 'arguments', 'parameters'],
             ],
@@ -42,7 +44,12 @@ return (new PhpCsFixer\Config())
     )
     ->setFinder(
         PhpCsFixer\Finder::create()
-            ->in(__DIR__ . DIRECTORY_SEPARATOR . 'examples')
-            ->in(__DIR__ . DIRECTORY_SEPARATOR . 'src')
+            ->in(
+                [
+                    __DIR__ . DIRECTORY_SEPARATOR . 'examples',
+                    __DIR__ . DIRECTORY_SEPARATOR . 'src',
+                    __DIR__ . DIRECTORY_SEPARATOR . 'tests',
+                ],
+            )
             ->name('*.php'),
     );

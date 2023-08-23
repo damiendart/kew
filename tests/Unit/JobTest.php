@@ -15,17 +15,22 @@ use Kew\QueueableInterface;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\UuidFactory;
 
+/**
+ * @covers \Kew\Job
+ *
+ * @internal
+ */
 class JobTest extends TestCase
 {
-    public function testAddingAttempts(): void
+    public function test_track_the_number_of_job_attempts(): void
     {
         $uuidFactory = new UuidFactory();
         $job = new Job(
             $uuidFactory->uuid4(),
-            new class implements QueueableInterface {
-                public function getPayload(): string
+            new class () implements QueueableInterface {
+                public function getPayload(): null
                 {
-                    return 'Hey!';
+                    return null;
                 }
             },
             0,
@@ -40,15 +45,15 @@ class JobTest extends TestCase
         $this->assertEquals(2, $job->getAttempts());
     }
 
-    public function testSettingAJobAsFailed(): void
+    public function test_track_whether_the_job_has_failed_or_not(): void
     {
         $uuidFactory = new UuidFactory();
         $job = new Job(
             $uuidFactory->uuid4(),
-            new class implements QueueableInterface {
-                public function getPayload(): string
+            new class () implements QueueableInterface {
+                public function getPayload(): null
                 {
-                    return 'Hey!';
+                    return null;
                 }
             },
             0,
