@@ -24,8 +24,7 @@ abstract class AbstractWorker
     public function __construct(
         protected Queue $queue,
         protected ClockInterface $clock,
-    ) {
-    }
+    ) {}
 
     public function processJobs(): void
     {

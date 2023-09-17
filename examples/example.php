@@ -22,9 +22,7 @@ use Ramsey\Uuid\UuidFactory;
 
 require \dirname(__DIR__) . '/vendor/autoload.php';
 
-class UnhandledJobException extends \Exception
-{
-}
+class UnhandledJobException extends \Exception {}
 
 class ExampleQueueable implements QueueableInterface
 {

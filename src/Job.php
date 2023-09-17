@@ -20,8 +20,7 @@ class Job
         private readonly UuidInterface $id,
         private readonly QueueableInterface $queueable,
         private int $attempts,
-    ) {
-    }
+    ) {}
 
     public function addAttempt(): int
     {
