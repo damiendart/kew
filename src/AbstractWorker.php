@@ -36,15 +36,11 @@ abstract class AbstractWorker
             }
 
             try {
-                $this->queue->markJobAsReserved($job);
                 $this->handleJob($job);
                 $this->queue->markJobAsCompleted($job);
             } catch (\Throwable $e) {
                 $this->queue->markJobAsUnreserved($job);
-
-                if ($job->hasFailed()) {
-                    $this->handleFailedJob($job, $e);
-                }
+                $this->handleFailedJob($job, $e);
             }
         }
     }

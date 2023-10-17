@@ -18,18 +18,13 @@ class Queue
     private const MAXIMUM_ATTEMPTS = 3;
     private const TIMESTAMP_FORMAT = 'Y-m-d H:i:s';
 
-    private ClockInterface $clock;
     private \PDO $database;
-    private UuidFactory $uuidFactory;
 
     public function __construct(
         string $databaseFilename,
-        ClockInterface $clock,
-        UuidFactory $uuidFactory,
+        private readonly ClockInterface $clock,
+        private readonly UuidFactory $uuidFactory,
     ) {
-        $this->clock = $clock;
-        $this->uuidFactory = $uuidFactory;
-
         $this->initialiseDatabase($databaseFilename);
     }
 
@@ -82,11 +77,14 @@ class Queue
         /** @var QueueableInterface $queueable */
         $queueable = unserialize($result['data']);
 
-        return new Job(
+        $job = new Job(
             $this->uuidFactory->fromString($result['id']),
             $queueable,
-            $result['attempts'],
         );
+
+        $this->markJobAsReserved($job);
+
+        return $job;
     }
 
     public function markJobAsCompleted(Job $job): void
@@ -94,10 +92,9 @@ class Queue
         $this->deleteJob($job);
     }
 
-    public function markJobAsFailed(Job $job): void
+    public function markJobAsKilled(Job $job): void
     {
-        $job->failJob();
-        $jobId = $job->getId();
+        $jobId = $job->id;
         $statement = $this->database->prepare(
             'UPDATE jobs
                 SET available_at = NULL, reserved_at = NULL
@@ -110,18 +107,16 @@ class Queue
 
     public function markJobAsReserved(Job $job): void
     {
-        $attempts = $job->addAttempt();
-        $jobId = $job->getId();
+        $jobId = $job->id;
         $reservedTimestamp = $this->clock
             ->now()
             ->format(self::TIMESTAMP_FORMAT);
         $statement = $this->database->prepare(
             'UPDATE jobs
-                SET attempts = :attempts, reserved_at = :reserved_at
+                SET attempts = attempts + 1, reserved_at = :reserved_at
                 WHERE id = :id',
         );
 
-        $statement->bindParam(':attempts', $attempts, \PDO::PARAM_INT);
         $statement->bindParam(':id', $jobId);
         $statement->bindParam(':reserved_at', $reservedTimestamp);
         $statement->execute();
@@ -129,15 +124,14 @@ class Queue
 
     public function markJobAsUnreserved(Job $job): void
     {
-        if ($job->getAttempts() >= self::MAXIMUM_ATTEMPTS) {
-            $this->markJobAsFailed($job);
+        if ($this->getJobAttempts($job) >= self::MAXIMUM_ATTEMPTS) {
+            $this->markJobAsKilled($job);
 
             return;
         }
 
         $nextAttemptTimestamp = (new \DateTimeImmutable('+1 minute'))
             ->format(self::TIMESTAMP_FORMAT);
-        $jobId = $job->getId();
         $statement = $this->database->prepare(
             'UPDATE jobs
                 SET available_at = :available_at, reserved_at = NULL
@@ -145,17 +139,36 @@ class Queue
         );
 
         $statement->bindParam(':available_at', $nextAttemptTimestamp);
-        $statement->bindParam(':id', $jobId);
+        $statement->bindValue(':id', $job->id);
         $statement->execute();
     }
 
     private function deleteJob(Job $job): void
     {
-        $jobId = $job->getId();
+        $jobId = $job->id;
         $statement = $this->database->prepare('DELETE FROM jobs WHERE id = :id');
 
         $statement->bindParam(':id', $jobId);
         $statement->execute();
+    }
+
+    private function getJobAttempts(Job $job): int
+    {
+        $statement = $this->database->prepare(
+            'SELECT attempts FROM jobs WHERE id = :id',
+        );
+
+        $statement->bindValue(':id', $job->id);
+        $statement->execute();
+
+        /** @var array{ attempts: int }[] $results */
+        $results = $statement->fetchAll();
+
+        if (0 === \count($results)) {
+            throw new \RuntimeException("Cannot find job {$job->id}");
+        }
+
+        return $results[0]['attempts'];
     }
 
     private function initialiseDatabase(string $filename): void

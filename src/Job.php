@@ -12,47 +12,10 @@ namespace Kew;
 
 use Ramsey\Uuid\UuidInterface;
 
-class Job
+readonly class Job
 {
-    private bool $hasFailed = false;
-
     public function __construct(
-        private readonly UuidInterface $id,
-        private readonly QueueableInterface $queueable,
-        private int $attempts,
+        public UuidInterface $id,
+        public QueueableInterface $queueable,
     ) {}
-
-    public function addAttempt(): int
-    {
-        ++$this->attempts;
-
-        return $this->attempts;
-    }
-
-    public function failJob(): self
-    {
-        $this->hasFailed = true;
-
-        return $this;
-    }
-
-    public function getAttempts(): int
-    {
-        return $this->attempts;
-    }
-
-    public function getId(): UuidInterface
-    {
-        return $this->id;
-    }
-
-    public function getQueueable(): QueueableInterface
-    {
-        return $this->queueable;
-    }
-
-    public function hasFailed(): bool
-    {
-        return $this->hasFailed;
-    }
 }

@@ -56,13 +56,13 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleJob(Job $job): void
     {
-        $this->logger->info('Processing job {id}', ['id' => $job->getId()]);
+        $this->logger->info('Processing job {id}', ['id' => $job->id]);
 
-        $queueable = $job->getQueueable();
+        $queueable = $job->queueable;
 
         echo match ($queueable::class) {
             ExampleQueueable::class => $queueable->getPayload() . PHP_EOL,
-            default => throw new UnhandledJobException((string) $job->getId()),
+            default => throw new UnhandledJobException((string) $job->id),
         };
     }
 
@@ -71,7 +71,7 @@ class ExampleWorker extends AbstractWorker
      */
     protected function handleFailedJob(Job $job, Throwable $throwable): void
     {
-        $this->logger->error('Job {id} failed!', ['id' => $job->getId()]);
+        $this->logger->error('Job {id} failed!', ['id' => $job->id]);
     }
 }
 
