@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-namespace Kew;
+namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 use Ramsey\Uuid\UuidFactory;

@@ -8,11 +8,11 @@
 
 declare(strict_types=1);
 
-use Kew\AbstractWorker;
-use Kew\Job;
-use Kew\Queue;
-use Kew\QueueableInterface;
-use Kew\SystemClock;
+use DamienDart\Kew\AbstractWorker;
+use DamienDart\Kew\Job;
+use DamienDart\Kew\Queue;
+use DamienDart\Kew\QueueableInterface;
+use DamienDart\Kew\SystemClock;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;

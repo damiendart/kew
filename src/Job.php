@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-namespace Kew;
+namespace DamienDart\Kew;
 
 use Ramsey\Uuid\UuidInterface;
 

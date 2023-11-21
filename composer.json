@@ -1,12 +1,12 @@
 {
   "autoload": {
     "psr-4": {
-      "Kew\\": "src/"
+      "DamienDart\\Kew\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Kew\\Tests\\": "tests/"
+      "DamienDart\\Kew\\Tests\\": "tests/"
     }
   },
   "require": {

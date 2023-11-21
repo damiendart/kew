@@ -8,13 +8,13 @@
 
 declare(strict_types=1);
 
-namespace Kew\Tests\Unit;
+namespace DamienDart\Kew\Tests\Unit;
 
-use Kew\SystemClock;
+use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Kew\SystemClock
+ * @covers \DamienDart\Kew\SystemClock
  *
  * @internal
  */
