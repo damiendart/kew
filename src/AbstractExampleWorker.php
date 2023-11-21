@@ -12,7 +12,7 @@ namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 
-abstract class AbstractWorker
+abstract class AbstractExampleWorker
 {
     abstract protected function handleJob(Job $job): void;
 

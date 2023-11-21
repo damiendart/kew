@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-use DamienDart\Kew\AbstractWorker;
+use DamienDart\Kew\AbstractExampleWorker;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\QueueableInterface;
@@ -32,7 +32,7 @@ class ExampleQueueable implements QueueableInterface
     }
 }
 
-class ExampleWorker extends AbstractWorker
+class ExampleWorker extends AbstractExampleWorker
 {
     public function __construct(
         protected Queue $queue,
