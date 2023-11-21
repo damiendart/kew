@@ -16,7 +16,6 @@ use DamienDart\Kew\SystemClock;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\UuidFactory;
 
@@ -36,10 +35,9 @@ class ExampleWorker extends AbstractExampleWorker
 {
     public function __construct(
         protected Queue $queue,
-        protected ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
-        parent::__construct($queue, $clock);
+        parent::__construct($queue);
     }
 
     public function processJobs(): void
@@ -77,7 +75,7 @@ class ExampleWorker extends AbstractExampleWorker
 
 $logger = new Logger('worker');
 $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
-$worker = new ExampleWorker($queue, new SystemClock(), $logger);
+$worker = new ExampleWorker($queue, $logger);
 
 $logger->pushHandler(new StreamHandler('php://stdout'));
 $logger->pushProcessor(new PsrLogMessageProcessor());

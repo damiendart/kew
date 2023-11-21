@@ -16,7 +16,6 @@ use Ramsey\Uuid\UuidFactory;
 class Queue
 {
     private const MAXIMUM_ATTEMPTS = 3;
-    private const TIMESTAMP_FORMAT = 'Y-m-d H:i:s';
 
     private \PDO $database;
 
@@ -30,30 +29,27 @@ class Queue
 
     public function addJob(
         QueueableInterface $queueable,
-        ?\DateTimeImmutable $scheduledDateTime = null,
+        ?\DateTimeInterface $availableAt = null,
     ): void {
         $data = serialize(clone $queueable);
-        $scheduledDateTime ??= $this->clock->now();
-        $formattedScheduledDateTime = $scheduledDateTime->format(
-            self::TIMESTAMP_FORMAT,
-        );
+        $createdAt = $this->clock->now();
+
+        $availableAt ??= $createdAt;
+
         $statement = $this->database->prepare(
             'INSERT INTO jobs (id, created_at, available_at, data)
                 VALUES (:id, :created_at, :available_at, :data)',
         );
 
-        $uuid = $this->uuidFactory->uuid4()->toString();
-
-        $statement->bindParam(':id', $uuid);
-        $statement->bindParam(':available_at', $formattedScheduledDateTime);
-        $statement->bindParam(':created_at', $formattedScheduledDateTime);
         $statement->bindParam(':data', $data);
+        $statement->bindValue(':available_at', $availableAt->getTimestamp());
+        $statement->bindValue(':created_at', $createdAt->getTimestamp());
+        $statement->bindValue(':id', $this->uuidFactory->uuid4()->toString());
         $statement->execute();
     }
 
-    public function getNextJob(\DateTimeImmutable $timestamp): ?Job
+    public function getNextJob(): ?Job
     {
-        $timestamp = $timestamp->format(self::TIMESTAMP_FORMAT);
         $statement = $this->database->prepare(
             'SELECT id, attempts, data FROM jobs
                 WHERE reserved_at IS NULL
@@ -62,7 +58,7 @@ class Queue
                 LIMIT 1',
         );
 
-        $statement->bindParam(':available_at', $timestamp);
+        $statement->bindValue(':available_at', $this->clock->now()->getTimestamp());
         $statement->execute();
 
         $results = $statement->fetchAll();
@@ -94,31 +90,26 @@ class Queue
 
     public function markJobAsKilled(Job $job): void
     {
-        $jobId = $job->id;
         $statement = $this->database->prepare(
             'UPDATE jobs
                 SET available_at = NULL, reserved_at = NULL
                 WHERE id = :id',
         );
 
-        $statement->bindParam(':id', $jobId);
+        $statement->bindValue(':id', $job->id);
         $statement->execute();
     }
 
     public function markJobAsReserved(Job $job): void
     {
-        $jobId = $job->id;
-        $reservedTimestamp = $this->clock
-            ->now()
-            ->format(self::TIMESTAMP_FORMAT);
         $statement = $this->database->prepare(
             'UPDATE jobs
                 SET attempts = attempts + 1, reserved_at = :reserved_at
                 WHERE id = :id',
         );
 
-        $statement->bindParam(':id', $jobId);
-        $statement->bindParam(':reserved_at', $reservedTimestamp);
+        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
         $statement->execute();
     }
 
@@ -130,25 +121,27 @@ class Queue
             return;
         }
 
-        $nextAttemptTimestamp = (new \DateTimeImmutable('+1 minute'))
-            ->format(self::TIMESTAMP_FORMAT);
         $statement = $this->database->prepare(
             'UPDATE jobs
                 SET available_at = :available_at, reserved_at = NULL
                 WHERE id = :id',
         );
 
-        $statement->bindParam(':available_at', $nextAttemptTimestamp);
+        $statement->bindValue(
+            ':available_at',
+            $this->clock->now()
+                ->add(new \DateInterval('PT1M'))
+                ->getTimestamp(),
+        );
         $statement->bindValue(':id', $job->id);
         $statement->execute();
     }
 
     private function deleteJob(Job $job): void
     {
-        $jobId = $job->id;
         $statement = $this->database->prepare('DELETE FROM jobs WHERE id = :id');
 
-        $statement->bindParam(':id', $jobId);
+        $statement->bindValue(':id', $job->id);
         $statement->execute();
     }
 

@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
-use Psr\Clock\ClockInterface;
-
 abstract class AbstractExampleWorker
 {
     abstract protected function handleJob(Job $job): void;
@@ -21,15 +19,12 @@ abstract class AbstractExampleWorker
         \Throwable $throwable,
     ): void;
 
-    public function __construct(
-        protected Queue $queue,
-        protected ClockInterface $clock,
-    ) {}
+    public function __construct(protected Queue $queue) {}
 
     public function processJobs(): void
     {
         while ($this->canProcessJobs()) {
-            $job = $this->queue->getNextJob($this->clock->now());
+            $job = $this->queue->getNextJob();
 
             if (null === $job) {
                 break;
