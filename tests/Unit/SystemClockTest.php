@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class SystemClockTest extends TestCase
 {
-    public function test_returns_the_current_time(): void
+    public function test_returns_the_current_date_and_time(): void
     {
         $clock = new SystemClock();
 
