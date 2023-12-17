@@ -12,6 +12,7 @@ namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 use Ramsey\Uuid\UuidFactory;
+use Ramsey\Uuid\UuidInterface;
 
 class Queue
 {
@@ -27,12 +28,14 @@ class Queue
         $this->initialiseDatabase($databaseFilename);
     }
 
+    /** @psalm-suppress PossiblyUnusedReturnValue */
     public function addJob(
         QueueableInterface $queueable,
         ?\DateTimeInterface $availableAt = null,
-    ): void {
+    ): UuidInterface {
         $data = serialize(clone $queueable);
         $createdAt = $this->clock->now();
+        $uuid = $this->uuidFactory->uuid4();
 
         $availableAt ??= $createdAt;
 
@@ -44,8 +47,10 @@ class Queue
         $statement->bindParam(':data', $data);
         $statement->bindValue(':available_at', $availableAt->getTimestamp());
         $statement->bindValue(':created_at', $createdAt->getTimestamp());
-        $statement->bindValue(':id', $this->uuidFactory->uuid4()->toString());
+        $statement->bindValue(':id', $uuid->toString());
         $statement->execute();
+
+        return $uuid;
     }
 
     public function getNextJob(): ?Job
