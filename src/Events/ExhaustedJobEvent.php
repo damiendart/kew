@@ -12,6 +12,9 @@ namespace DamienDart\Kew\Events;
 
 use DamienDart\Kew\Job;
 
+/**
+ * @psalm-api
+ */
 class ExhaustedJobEvent extends AbstractEvent
 {
     public function __construct(

@@ -12,6 +12,9 @@ namespace DamienDart\Kew;
 
 use Ramsey\Uuid\UuidInterface;
 
+/**
+ * @psalm-api
+ */
 readonly class Job
 {
     public function __construct(

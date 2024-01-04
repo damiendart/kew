@@ -22,6 +22,9 @@ class Queue
 
     private \PDO $database;
 
+    /**
+     * @psalm-api
+     */
     public function __construct(
         string $databaseFilename,
         private readonly ClockInterface $clock,
@@ -31,7 +34,9 @@ class Queue
         $this->initialiseDatabase($databaseFilename);
     }
 
-    /** @psalm-suppress PossiblyUnusedReturnValue */
+    /**
+     * @psalm-api
+     */
     public function addJob(
         QueueableInterface $queueable,
         ?\DateTimeInterface $availableAt = null,

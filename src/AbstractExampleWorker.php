@@ -10,6 +10,9 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
+/**
+ * @psalm-api
+ */
 abstract class AbstractExampleWorker
 {
     abstract protected function handleJob(Job $job): void;

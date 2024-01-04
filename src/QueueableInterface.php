@@ -10,6 +10,9 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
+/**
+ * @psalm-api
+ */
 interface QueueableInterface
 {
     public function getPayload(): mixed;

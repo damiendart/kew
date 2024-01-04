@@ -46,7 +46,6 @@ return (new PhpCsFixer\Config())
         PhpCsFixer\Finder::create()
             ->in(
                 [
-                    __DIR__ . DIRECTORY_SEPARATOR . 'examples',
                     __DIR__ . DIRECTORY_SEPARATOR . 'src',
                     __DIR__ . DIRECTORY_SEPARATOR . 'tests',
                 ],

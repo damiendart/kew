@@ -12,6 +12,9 @@ namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 
+/**
+ * @psalm-api
+ */
 class SystemClock implements ClockInterface
 {
     private ?\DateTimeZone $timezone;
