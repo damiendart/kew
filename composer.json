@@ -13,6 +13,7 @@
     "ext-pdo": "*",
     "php": "^8.2",
     "psr/clock": "^1.0",
+    "psr/event-dispatcher": "^1.0",
     "ramsey/uuid": "^4.7.5"
   },
   "require-dev": {

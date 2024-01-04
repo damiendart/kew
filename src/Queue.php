@@ -10,7 +10,9 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
+use DamienDart\Kew\Events\ExhaustedJobEvent;
 use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 use Ramsey\Uuid\UuidInterface;
 
@@ -24,6 +26,7 @@ class Queue
         string $databaseFilename,
         private readonly ClockInterface $clock,
         private readonly UuidFactory $uuidFactory,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
         $this->initialiseDatabase($databaseFilename);
     }
@@ -120,8 +123,13 @@ class Queue
 
     public function markJobAsUnreserved(Job $job): void
     {
-        if ($this->getJobAttempts($job) >= self::MAXIMUM_ATTEMPTS) {
+        $attempts = $this->getJobAttempts($job);
+
+        if ($attempts >= self::MAXIMUM_ATTEMPTS) {
             $this->markJobAsKilled($job);
+            $this->eventDispatcher?->dispatch(
+                new ExhaustedJobEvent($job, $attempts),
+            );
 
             return;
         }
