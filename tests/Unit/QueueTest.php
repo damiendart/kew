@@ -10,9 +10,9 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew\Tests\Unit;
 
+use DamienDart\Kew\Clocks\FrozenClock;
 use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\ExhaustedJobEvent;
-use DamienDart\Kew\FrozenClock;
 use DamienDart\Kew\Queue;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;

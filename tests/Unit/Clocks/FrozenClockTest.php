@@ -8,13 +8,13 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew\Tests\Unit;
+namespace DamienDart\Kew\Tests\Unit\Clocks;
 
-use DamienDart\Kew\FrozenClock;
+use DamienDart\Kew\Clocks\FrozenClock;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \DamienDart\Kew\FrozenClock
+ * @covers \DamienDart\Kew\Clocks\FrozenClock
  *
  * @internal
  */
