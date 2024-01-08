@@ -45,7 +45,7 @@ class AbstractExampleWorkerTest extends TestCase
             ): void {}
         };
 
-        $queue->addJob($queueable);
+        $queue->createJob($queueable);
         $worker->processJobs();
 
         $this->assertCount(1, $worker->handledJobs);
@@ -77,7 +77,7 @@ class AbstractExampleWorkerTest extends TestCase
             }
         };
 
-        $queue->addJob($queueable);
+        $queue->createJob($queueable);
         $worker->processJobs();
 
         $this->assertCount(1, $worker->failedJobs);

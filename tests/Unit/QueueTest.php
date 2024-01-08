@@ -48,7 +48,7 @@ class QueueTest extends TestCase
             $eventDispatcher,
         );
 
-        $jobId = $queue->addJob(new ExampleQueueable());
+        $jobId = $queue->createJob(new ExampleQueueable());
 
         for ($i = 0; $i < 3; ++$i) {
             $job = $queue->getNextJob();

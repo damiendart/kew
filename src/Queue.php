@@ -37,7 +37,7 @@ class Queue
     /**
      * @psalm-api
      */
-    public function addJob(
+    public function createJob(
         QueueableInterface $queueable,
         ?\DateTimeInterface $availableAt = null,
     ): UuidInterface {
