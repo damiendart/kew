@@ -11,9 +11,11 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit;
 
 use DamienDart\Kew\Clocks\FrozenClock;
+use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\ExhaustedJobEvent;
 use DamienDart\Kew\Queue;
+use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
@@ -25,10 +27,8 @@ use Ramsey\Uuid\UuidFactory;
  */
 class QueueTest extends TestCase
 {
-    public function test_provides_a_notification_when_a_job_has_exhausted_its_attempts(): void
+    public function test_provides_a_notification_when_a_job_can_no_longer_be_retried(): void
     {
-        $clock = new FrozenClock(new \DateTimeImmutable());
-
         $eventDispatcher = new class () implements EventDispatcherInterface {
             /** @var AbstractEvent[] */
             public array $events = [];
@@ -43,17 +43,16 @@ class QueueTest extends TestCase
 
         $queue = new Queue(
             ':memory:',
-            $clock,
+            new SystemClock(),
             new UuidFactory(),
             $eventDispatcher,
         );
 
-        $jobId = $queue->createJob(new ExampleQueueable());
+        $jobId = $queue->createJob(new ExampleQueueable(), new RetryStrategy(4));
 
-        for ($i = 0; $i < 3; ++$i) {
+        for ($i = 0; $i <= 4; ++$i) {
             $job = $queue->getNextJob();
             $queue->markJobAsUnreserved($job);
-            $clock->setTo($clock->now()->modify('+1 minute'));
         }
 
         $latestEvent = array_pop($eventDispatcher->events);
@@ -63,5 +62,36 @@ class QueueTest extends TestCase
             $latestEvent->job->id->toString(),
             $jobId->toString(),
         );
+    }
+
+    public function test_honours_retry_intervals(): void
+    {
+        $clock = new FrozenClock(new \DateTimeImmutable());
+        $queue = new Queue(':memory:', $clock, new UuidFactory());
+
+        $jobId = $queue->createJob(
+            new ExampleQueueable(),
+            new RetryStrategy(
+                2,
+                \DateInterval::createFromDateString('+1 minute'),
+                \DateInterval::createFromDateString('+2 minutes'),
+            ),
+        );
+
+        $job = $queue->getNextJob();
+        $queue->markJobAsUnreserved($job);
+        $this->assertNull($queue->getNextJob());
+
+        $clock->setTo($clock->now()->modify('+1 minute'));
+        $job = $queue->getNextJob();
+        $this->assertEquals($jobId->toString(), $job->id->toString());
+
+        $queue->markJobAsUnreserved($job);
+        $clock->setTo($clock->now()->modify('+1 minute'));
+        $this->assertNull($queue->getNextJob());
+
+        $clock->setTo($clock->now()->modify('+1 minute'));
+        $job = $queue->getNextJob();
+        $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 }

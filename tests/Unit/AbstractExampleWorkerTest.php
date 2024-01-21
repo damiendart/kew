@@ -15,6 +15,7 @@ use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\QueueableInterface;
+use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\UuidFactory;
 
@@ -45,7 +46,7 @@ class AbstractExampleWorkerTest extends TestCase
             ): void {}
         };
 
-        $queue->createJob($queueable);
+        $queue->createJob($queueable, new RetryStrategy());
         $worker->processJobs();
 
         $this->assertCount(1, $worker->handledJobs);
@@ -77,7 +78,7 @@ class AbstractExampleWorkerTest extends TestCase
             }
         };
 
-        $queue->createJob($queueable);
+        $queue->createJob($queueable, new RetryStrategy(0));
         $worker->processJobs();
 
         $this->assertCount(1, $worker->failedJobs);

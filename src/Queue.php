@@ -18,8 +18,6 @@ use Ramsey\Uuid\UuidInterface;
 
 class Queue
 {
-    private const MAXIMUM_ATTEMPTS = 3;
-
     private \PDO $database;
 
     /**
@@ -39,9 +37,15 @@ class Queue
      */
     public function createJob(
         QueueableInterface $queueable,
+        RetryStrategy $retryStrategy,
         ?\DateTimeInterface $availableAt = null,
     ): UuidInterface {
-        $data = serialize(clone $queueable);
+        $data = serialize(
+            [
+                'queueable' => clone $queueable,
+                'retryStrategy' => clone $retryStrategy,
+            ],
+        );
         $createdAt = $this->clock->now();
         $uuid = $this->uuidFactory->uuid4();
 
@@ -83,12 +87,12 @@ class Queue
         /** @var array{ id: string, attempts: int, data: string } $result */
         $result = $results[0];
 
-        /** @var QueueableInterface $queueable */
-        $queueable = unserialize($result['data']);
+        /** @var array{ queueable: QueueableInterface, retryStrategy: RetryStrategy } $data */
+        $data = unserialize($result['data']);
 
         $job = new Job(
             $this->uuidFactory->fromString($result['id']),
-            $queueable,
+            $data['queueable'],
         );
 
         $this->markJobAsReserved($job);
@@ -128,12 +132,17 @@ class Queue
 
     public function markJobAsUnreserved(Job $job): void
     {
-        $attempts = $this->getJobAttempts($job);
+        /** @var positive-int $numberOfAttempts */
+        $numberOfAttempts = $this->getJobAttempts($job);
 
-        if ($attempts >= self::MAXIMUM_ATTEMPTS) {
+        $retryInterval = $this
+            ->getRetryStrategyForJob($job->id)
+            ->getRetryInterval($numberOfAttempts - 1);
+
+        if (false === $retryInterval) {
             $this->markJobAsKilled($job);
             $this->eventDispatcher?->dispatch(
-                new ExhaustedJobEvent($job, $attempts),
+                new ExhaustedJobEvent($job, $numberOfAttempts),
             );
 
             return;
@@ -147,9 +156,7 @@ class Queue
 
         $statement->bindValue(
             ':available_at',
-            $this->clock->now()
-                ->add(new \DateInterval('PT1M'))
-                ->getTimestamp(),
+            $this->clock->now()->add($retryInterval)->getTimestamp(),
         );
         $statement->bindValue(':id', $job->id);
         $statement->execute();
@@ -180,6 +187,31 @@ class Queue
         }
 
         return $results[0]['attempts'];
+    }
+
+    private function getRetryStrategyForJob(UuidInterface $id): RetryStrategy
+    {
+        $statement = $this->database->prepare(
+            'SELECT data FROM jobs WHERE id = :id',
+        );
+
+        $statement->bindValue(':id', $id);
+        $statement->execute();
+
+        /** @var array{ data: string }[] $results */
+        $results = $statement->fetchAll();
+
+        if (0 === \count($results)) {
+            throw new \RuntimeException("Cannot find job {$id}");
+        }
+
+        /** @var array{ id: string, attempts: int, data: string } $result */
+        $result = $results[0];
+
+        /** @var array{ queueable: QueueableInterface, retryStrategy: RetryStrategy } $data */
+        $data = unserialize($result['data']);
+
+        return $data['retryStrategy'];
     }
 
     private function initialiseDatabase(string $filename): void
