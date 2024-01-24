@@ -18,18 +18,18 @@ use Ramsey\Uuid\UuidInterface;
 
 class Queue
 {
-    private \PDO $database;
+    private \PDO $sqliteDatabase;
 
     /**
      * @psalm-api
      */
     public function __construct(
-        string $databaseFilename,
+        string $databaseFilepath,
         private readonly ClockInterface $clock,
         private readonly UuidFactory $uuidFactory,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
-        $this->initialiseDatabase($databaseFilename);
+        $this->initialiseSqliteDatabase($databaseFilepath);
     }
 
     /**
@@ -49,7 +49,7 @@ class Queue
         );
         $uuid = $this->uuidFactory->uuid4();
 
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'INSERT INTO jobs (id, created_at, available_at, data)
                 VALUES (:id, :created_at, :available_at, :data)',
         );
@@ -65,7 +65,7 @@ class Queue
 
     public function getNextJob(): ?Job
     {
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'SELECT id, attempts, data FROM jobs
                 WHERE reserved_at IS NULL
                     AND available_at IS NOT NULL
@@ -105,7 +105,7 @@ class Queue
 
     public function markJobAsKilled(Job $job): void
     {
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
                 SET available_at = NULL, reserved_at = NULL
                 WHERE id = :id',
@@ -117,7 +117,7 @@ class Queue
 
     public function markJobAsReserved(Job $job): void
     {
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
                 SET attempts = attempts + 1, reserved_at = :reserved_at
                 WHERE id = :id',
@@ -146,7 +146,7 @@ class Queue
             return;
         }
 
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
                 SET available_at = :available_at, reserved_at = NULL
                 WHERE id = :id',
@@ -162,7 +162,7 @@ class Queue
 
     private function deleteJob(Job $job): void
     {
-        $statement = $this->database->prepare('DELETE FROM jobs WHERE id = :id');
+        $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
 
         $statement->bindValue(':id', $job->id);
         $statement->execute();
@@ -170,7 +170,7 @@ class Queue
 
     private function getJobAttempts(Job $job): int
     {
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'SELECT attempts FROM jobs WHERE id = :id',
         );
 
@@ -189,7 +189,7 @@ class Queue
 
     private function getRetryStrategyForJob(UuidInterface $id): ?RetryStrategy
     {
-        $statement = $this->database->prepare(
+        $statement = $this->sqliteDatabase->prepare(
             'SELECT data FROM jobs WHERE id = :id',
         );
 
@@ -212,12 +212,12 @@ class Queue
         return $data['retryStrategy'];
     }
 
-    private function initialiseDatabase(string $filename): void
+    private function initialiseSqliteDatabase(string $filepath): void
     {
-        $this->database = new \PDO("sqlite:{$filename}");
+        $this->sqliteDatabase = new \PDO("sqlite:{$filepath}");
 
-        $this->database->exec('PRAGMA journal_mode=WAL');
-        $this->database->exec(
+        $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
+        $this->sqliteDatabase->exec(
             'CREATE TABLE IF NOT EXISTS jobs(
                 id TEXT PRIMARY KEY UNIQUE,
                 created_at TEXT,
