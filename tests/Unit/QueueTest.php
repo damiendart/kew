@@ -49,12 +49,10 @@ class QueueTest extends TestCase
             $eventDispatcher,
         );
 
-        $jobId = $queue->createJob(new ExampleQueueable(), new RetryStrategy(4));
+        $jobId = $queue->createJob(new ExampleQueueable());
+        $job = $queue->getNextJob();
 
-        for ($i = 0; $i <= 4; ++$i) {
-            $job = $queue->getNextJob();
-            $queue->markJobAsUnreserved($job);
-        }
+        $queue->markJobAsUnreserved($job);
 
         $latestEvent = array_pop($eventDispatcher->events);
 

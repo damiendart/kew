@@ -37,14 +37,14 @@ class Queue
      */
     public function createJob(
         QueueableInterface $queueable,
-        RetryStrategy $retryStrategy,
+        ?RetryStrategy $retryStrategy = null,
         ?\DateTimeInterface $availableAt = null,
     ): UuidInterface {
         $createdAt = $this->clock->now();
         $data = serialize(
             [
                 'queueable' => clone $queueable,
-                'retryStrategy' => clone $retryStrategy,
+                'retryStrategy' => $retryStrategy,
             ],
         );
         $uuid = $this->uuidFactory->uuid4();
@@ -135,9 +135,9 @@ class Queue
 
         $retryInterval = $this
             ->getRetryStrategyForJob($job->id)
-            ->getRetryInterval($numberOfAttempts - 1);
+            ?->getRetryInterval($numberOfAttempts - 1);
 
-        if (false === $retryInterval) {
+        if (empty($retryInterval)) {
             $this->markJobAsKilled($job);
             $this->eventDispatcher?->dispatch(
                 new ExhaustedJobEvent($job, $numberOfAttempts),
@@ -187,7 +187,7 @@ class Queue
         return $results[0]['attempts'];
     }
 
-    private function getRetryStrategyForJob(UuidInterface $id): RetryStrategy
+    private function getRetryStrategyForJob(UuidInterface $id): ?RetryStrategy
     {
         $statement = $this->database->prepare(
             'SELECT data FROM jobs WHERE id = :id',
@@ -206,7 +206,7 @@ class Queue
         /** @var array{ id: string, attempts: int, data: string } $result */
         $result = $results[0];
 
-        /** @var array{ queueable: QueueableInterface, retryStrategy: RetryStrategy } $data */
+        /** @var array{ queueable: QueueableInterface, retryStrategy: ?RetryStrategy } $data */
         $data = unserialize($result['data']);
 
         return $data['retryStrategy'];
