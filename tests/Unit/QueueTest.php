@@ -63,6 +63,24 @@ class QueueTest extends TestCase
         );
     }
 
+    public function test_can_schedule_jobs(): void
+    {
+        $clock = new FrozenClock(new \DateTimeImmutable());
+        $queue = new Queue(':memory:', $clock, new UuidFactory());
+
+        $jobId = $queue->createJob(
+            new ExampleQueueable(),
+            null,
+            $clock->now()->modify('+5 minutes'),
+        );
+
+        $this->assertNull($queue->getNextJob());
+
+        $clock->setTo($clock->now()->modify('+5 minutes'));
+        $job = $queue->getNextJob();
+        $this->assertEquals($jobId->toString(), $job->id->toString());
+    }
+
     public function test_honours_retry_intervals(): void
     {
         $clock = new FrozenClock(new \DateTimeImmutable());
