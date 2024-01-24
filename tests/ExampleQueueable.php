@@ -8,9 +8,11 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew;
+namespace DamienDart\Kew\Tests;
 
-/**
- * @psalm-api
- */
-interface QueueableInterface {}
+use DamienDart\Kew\QueueableInterface;
+
+final readonly class ExampleQueueable implements QueueableInterface
+{
+    public function __construct(public mixed $payload = null) {}
+}

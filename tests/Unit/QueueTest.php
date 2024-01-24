@@ -16,6 +16,7 @@ use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\ExhaustedJobEvent;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
+use DamienDart\Kew\Tests\ExampleQueueable;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;

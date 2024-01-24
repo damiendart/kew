@@ -40,25 +40,23 @@ class Queue
         RetryStrategy $retryStrategy,
         ?\DateTimeInterface $availableAt = null,
     ): UuidInterface {
+        $createdAt = $this->clock->now();
         $data = serialize(
             [
                 'queueable' => clone $queueable,
                 'retryStrategy' => clone $retryStrategy,
             ],
         );
-        $createdAt = $this->clock->now();
         $uuid = $this->uuidFactory->uuid4();
-
-        $availableAt ??= $createdAt;
 
         $statement = $this->database->prepare(
             'INSERT INTO jobs (id, created_at, available_at, data)
                 VALUES (:id, :created_at, :available_at, :data)',
         );
 
-        $statement->bindParam(':data', $data);
-        $statement->bindValue(':available_at', $availableAt->getTimestamp());
+        $statement->bindValue(':available_at', ($availableAt ?? $createdAt)->getTimestamp());
         $statement->bindValue(':created_at', $createdAt->getTimestamp());
+        $statement->bindParam(':data', $data);
         $statement->bindValue(':id', $uuid->toString());
         $statement->execute();
 
@@ -216,7 +214,7 @@ class Queue
 
     private function initialiseDatabase(string $filename): void
     {
-        $this->database = new \PDO('sqlite:' . $filename);
+        $this->database = new \PDO("sqlite:{$filename}");
 
         $this->database->exec('PRAGMA journal_mode=WAL');
         $this->database->exec(

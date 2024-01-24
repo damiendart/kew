@@ -14,8 +14,8 @@ use DamienDart\Kew\AbstractExampleWorker;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
-use DamienDart\Kew\QueueableInterface;
 use DamienDart\Kew\RetryStrategy;
+use DamienDart\Kew\Tests\ExampleQueueable;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\UuidFactory;
 
@@ -87,13 +87,5 @@ class AbstractExampleWorkerTest extends TestCase
             $worker->failedJobs[0]->throwable,
             new \Exception('Oops!'),
         );
-    }
-}
-
-class ExampleQueueable implements QueueableInterface
-{
-    public function getPayload(): string
-    {
-        return 'Hey!';
     }
 }
