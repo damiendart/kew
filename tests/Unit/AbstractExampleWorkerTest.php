@@ -14,7 +14,6 @@ use DamienDart\Kew\AbstractExampleWorker;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
-use DamienDart\Kew\Tests\ExampleQueueable;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\UuidFactory;
 
@@ -28,7 +27,6 @@ class AbstractExampleWorkerTest extends TestCase
     public function test_can_handle_jobs(): void
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
-        $queueable = new ExampleQueueable();
 
         $worker = new class ($queue) extends AbstractExampleWorker {
             /** @var Job[] */
@@ -45,17 +43,17 @@ class AbstractExampleWorkerTest extends TestCase
             ): void {}
         };
 
-        $queue->createJob($queueable);
+        $queue->createJob('test', ['foo' => 'bar']);
         $worker->processJobs();
 
         $this->assertCount(1, $worker->handledJobs);
-        $this->assertEquals($worker->handledJobs[0]->queueable, $queueable);
+        $this->assertEquals('test', $worker->handledJobs[0]->type);
+        $this->assertEquals(['foo' => 'bar'], $worker->handledJobs[0]->arguments);
     }
 
     public function test_can_handle_failed_jobs(): void
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
-        $queueable = new ExampleQueueable();
 
         $worker = new class ($queue) extends AbstractExampleWorker {
             /** @var stdClass{ 'job': Job, 'throwable': \Throwable }[] */
@@ -77,14 +75,12 @@ class AbstractExampleWorkerTest extends TestCase
             }
         };
 
-        $queue->createJob($queueable);
+        $queue->createJob('test', ['foo' => 'bar']);
         $worker->processJobs();
 
         $this->assertCount(1, $worker->failedJobs);
-        $this->assertEquals($worker->failedJobs[0]->job->queueable, $queueable);
-        $this->assertEquals(
-            $worker->failedJobs[0]->throwable,
-            new \Exception('Oops!'),
-        );
+        $this->assertEquals('test', $worker->failedJobs[0]->job->type);
+        $this->assertEquals(['foo' => 'bar'], $worker->failedJobs[0]->job->arguments);
+        $this->assertEquals(new \Exception('Oops!'), $worker->failedJobs[0]->throwable);
     }
 }

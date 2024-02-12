@@ -16,7 +16,6 @@ use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\JobKilledEvent;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
-use DamienDart\Kew\Tests\ExampleQueueable;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
@@ -49,7 +48,7 @@ class QueueTest extends TestCase
             $eventDispatcher,
         );
 
-        $jobId = $queue->createJob(new ExampleQueueable());
+        $jobId = $queue->createJob('test', null);
         $job = $queue->getNextJob();
 
         $queue->markJobAsUnreserved($job);
@@ -66,7 +65,8 @@ class QueueTest extends TestCase
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
         $jobId = $queue->createJob(
-            new ExampleQueueable(),
+            'test',
+            null,
             null,
             $clock->now()->modify('+5 minutes'),
         );
@@ -84,7 +84,8 @@ class QueueTest extends TestCase
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
         $jobId = $queue->createJob(
-            new ExampleQueueable(),
+            'test',
+            null,
             new RetryStrategy(2, 60, 120),
         );
 

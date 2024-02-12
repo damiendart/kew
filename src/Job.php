@@ -19,6 +19,7 @@ readonly class Job
 {
     public function __construct(
         public UuidInterface $id,
-        public QueueableInterface $queueable,
+        public string $type,
+        public mixed $arguments,
     ) {}
 }

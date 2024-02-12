@@ -13,7 +13,7 @@ namespace DamienDart\Kew;
 /**
  * @psalm-api
  */
-final readonly class RetryStrategy
+final readonly class RetryStrategy implements \JsonSerializable
 {
     /** @var non-negative-int */
     public int $maxRetryAttempts;
@@ -69,5 +69,19 @@ final readonly class RetryStrategy
         return $retryCount <= \count($this->retryIntervals)
             ? $this->retryIntervals[$retryCount]
             : $this->retryIntervals[\count($this->retryIntervals) - 1];
+    }
+
+    /**
+     * @return array{
+     *     'maxRetries': non-negative-int,
+     *     'retryIntervals': non-negative-int[],
+     * }
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'maxRetries' => $this->maxRetryAttempts,
+            'retryIntervals' => $this->retryIntervals,
+        ];
     }
 }

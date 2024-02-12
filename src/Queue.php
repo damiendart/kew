@@ -34,17 +34,28 @@ class Queue
 
     /**
      * @psalm-api
+     *
+     * @psalm-suppress TypeDoesNotContainType
+     *
+     * @param non-empty-string $type
      */
     public function createJob(
-        QueueableInterface $queueable,
+        string $type,
+        mixed $arguments,
         ?RetryStrategy $retryStrategy = null,
         ?\DateTimeInterface $availableAt = null,
     ): UuidInterface {
+        // @phpstan-ignore-next-line identical.alwaysFalse
+        if ('' === $type) {
+            throw new \InvalidArgumentException('A job name cannot be an empty string.');
+        }
+
         $createdAt = $this->clock->now();
-        $data = serialize(
+        $data = json_encode(
             [
-                'queueable' => clone $queueable,
+                'arguments' => $arguments,
                 'retryStrategy' => $retryStrategy,
+                'type' => $type,
             ],
         );
         $uuid = $this->uuidFactory->uuid4();
@@ -85,12 +96,22 @@ class Queue
         /** @var array{ id: string, attempts: int, data: string } $result */
         $result = $results[0];
 
-        /** @var array{ queueable: QueueableInterface, retryStrategy: RetryStrategy } $data */
-        $data = unserialize($result['data']);
+        /**
+         * @var array{
+         *     arguments: mixed,
+         *     retryStrategy: ?array{
+         *         'maxRetries': non-negative-int,
+         *         'retryIntervals': non-negative-int[],
+         *     },
+         *     type: non-empty-string
+         *  } $data
+         */
+        $data = json_decode($result['data'], true);
 
         $job = new Job(
             $this->uuidFactory->fromString($result['id']),
-            $data['queueable'],
+            $data['type'],
+            $data['arguments'],
         );
 
         $this->markJobAsReserved($job);
@@ -204,13 +225,26 @@ class Queue
             throw new \RuntimeException("Cannot find job {$id}");
         }
 
-        /** @var array{ id: string, attempts: int, data: string } $result */
-        $result = $results[0];
+        /**
+         * @var array{
+         *     arguments: mixed,
+         *     retryStrategy: ?array{
+         *         'maxRetries': non-negative-int,
+         *         'retryIntervals': non-negative-int[],
+         *     },
+         *     type: non-empty-string
+         *  } $data
+         */
+        $data = json_decode($results[0]['data'], true);
 
-        /** @var array{ queueable: QueueableInterface, retryStrategy: ?RetryStrategy } $data */
-        $data = unserialize($result['data']);
+        if (null === $data['retryStrategy']) {
+            return null;
+        }
 
-        return $data['retryStrategy'];
+        return new RetryStrategy(
+            $data['retryStrategy']['maxRetries'],
+            ...$data['retryStrategy']['retryIntervals'],
+        );
     }
 
     private function initialiseSqliteDatabase(string $filepath): void
