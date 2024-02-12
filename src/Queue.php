@@ -51,24 +51,19 @@ class Queue
         }
 
         $createdAt = $this->clock->now();
-        $data = json_encode(
-            [
-                'arguments' => $arguments,
-                'retryStrategy' => $retryStrategy,
-                'type' => $type,
-            ],
-        );
         $uuid = $this->uuidFactory->uuid4();
 
         $statement = $this->sqliteDatabase->prepare(
-            'INSERT INTO jobs (id, created_at, available_at, data)
-                VALUES (:id, :created_at, :available_at, :data)',
+            'INSERT INTO jobs (id, created_at, available_at, retry_strategy, payload)
+                VALUES (:id, :created_at, :available_at, :retry_strategy, :payload)',
         );
 
         $statement->bindValue(':available_at', ($availableAt ?? $createdAt)->getTimestamp());
         $statement->bindValue(':created_at', $createdAt->getTimestamp());
-        $statement->bindParam(':data', $data);
-        $statement->bindValue(':id', $uuid->toString());
+        $statement->bindValue(':id', $uuid);
+        $statement->bindValue(':payload', json_encode(['arguments' => $arguments, 'type' => $type]));
+        $statement->bindValue(':retry_strategy', (null === $retryStrategy) ? null : json_encode($retryStrategy));
+
         $statement->execute();
 
         return $uuid;
@@ -77,7 +72,7 @@ class Queue
     public function getNextJob(): ?Job
     {
         $statement = $this->sqliteDatabase->prepare(
-            'SELECT id, attempts, data FROM jobs
+            'SELECT id, payload FROM jobs
                 WHERE reserved_at IS NULL
                     AND available_at IS NOT NULL
                     AND available_at <= :available_at
@@ -87,29 +82,18 @@ class Queue
         $statement->bindValue(':available_at', $this->clock->now()->getTimestamp());
         $statement->execute();
 
+        /** @var array{ 'id': string, 'payload': string }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
             return null;
         }
 
-        /** @var array{ id: string, attempts: int, data: string } $result */
-        $result = $results[0];
-
-        /**
-         * @var array{
-         *     arguments: mixed,
-         *     retryStrategy: ?array{
-         *         'maxRetries': non-negative-int,
-         *         'retryIntervals': non-negative-int[],
-         *     },
-         *     type: non-empty-string
-         *  } $data
-         */
-        $data = json_decode($result['data'], true);
+        /** @var array{ 'arguments': mixed, 'type': non-empty-string } $data */
+        $data = json_decode($results[0]['payload'], true);
 
         $job = new Job(
-            $this->uuidFactory->fromString($result['id']),
+            $this->uuidFactory->fromString($results[0]['id']),
             $data['type'],
             $data['arguments'],
         );
@@ -212,38 +196,29 @@ class Queue
     private function getRetryStrategyForJob(UuidInterface $id): ?RetryStrategy
     {
         $statement = $this->sqliteDatabase->prepare(
-            'SELECT data FROM jobs WHERE id = :id',
+            'SELECT retry_strategy FROM jobs WHERE id = :id',
         );
 
         $statement->bindValue(':id', $id);
         $statement->execute();
 
-        /** @var array{ data: string }[] $results */
+        /** @var array{ 'retry_strategy': ?string }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
             throw new \RuntimeException("Cannot find job {$id}");
         }
 
-        /**
-         * @var array{
-         *     arguments: mixed,
-         *     retryStrategy: ?array{
-         *         'maxRetries': non-negative-int,
-         *         'retryIntervals': non-negative-int[],
-         *     },
-         *     type: non-empty-string
-         *  } $data
-         */
-        $data = json_decode($results[0]['data'], true);
-
-        if (null === $data['retryStrategy']) {
+        if (null === $results[0]['retry_strategy']) {
             return null;
         }
 
+        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $retryStrategy */
+        $retryStrategy = json_decode($results[0]['retry_strategy'], true);
+
         return new RetryStrategy(
-            $data['retryStrategy']['maxRetries'],
-            ...$data['retryStrategy']['retryIntervals'],
+            $retryStrategy['maxRetries'],
+            ...$retryStrategy['retryIntervals'],
         );
     }
 
@@ -259,7 +234,8 @@ class Queue
                 available_at TEXT,
                 reserved_at TEXT DEFAULT NULL,
                 attempts INT DEFAULT 0,
-                data TEXT
+                retry_strategy TEXT DEFAULT NULL,
+                payload TEXT
             )',
         );
     }
