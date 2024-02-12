@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
-use DamienDart\Kew\Events\ExhaustedJobEvent;
+use DamienDart\Kew\Events\JobKilledEvent;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
@@ -138,9 +138,7 @@ class Queue
 
         if (null === $retryInterval) {
             $this->markJobAsKilled($job);
-            $this->eventDispatcher?->dispatch(
-                new ExhaustedJobEvent($job, $numberOfAttempts),
-            );
+            $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
 
             return;
         }

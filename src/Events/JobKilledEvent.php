@@ -10,15 +10,12 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew\Events;
 
-use DamienDart\Kew\Job;
+use Ramsey\Uuid\UuidInterface;
 
 /**
  * @psalm-api
  */
-class ExhaustedJobEvent extends AbstractEvent
+final class JobKilledEvent extends AbstractEvent
 {
-    public function __construct(
-        public Job $job,
-        public int $attempts,
-    ) {}
+    public function __construct(readonly public UuidInterface $jobId) {}
 }

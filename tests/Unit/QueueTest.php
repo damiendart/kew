@@ -13,7 +13,7 @@ namespace DamienDart\Kew\Tests\Unit;
 use DamienDart\Kew\Clocks\FrozenClock;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Events\AbstractEvent;
-use DamienDart\Kew\Events\ExhaustedJobEvent;
+use DamienDart\Kew\Events\JobKilledEvent;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
 use DamienDart\Kew\Tests\ExampleQueueable;
@@ -56,11 +56,8 @@ class QueueTest extends TestCase
 
         $latestEvent = array_pop($eventDispatcher->events);
 
-        $this->assertInstanceOf(ExhaustedJobEvent::class, $latestEvent);
-        $this->assertEquals(
-            $latestEvent->job->id->toString(),
-            $jobId->toString(),
-        );
+        $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
+        $this->assertEquals($latestEvent->jobId->toString(), $jobId->toString());
     }
 
     public function test_can_schedule_jobs(): void
