@@ -88,11 +88,7 @@ class QueueTest extends TestCase
 
         $jobId = $queue->createJob(
             new ExampleQueueable(),
-            new RetryStrategy(
-                2,
-                \DateInterval::createFromDateString('+1 minute'),
-                \DateInterval::createFromDateString('+2 minutes'),
-            ),
+            new RetryStrategy(2, 60, 120),
         );
 
         $job = $queue->getNextJob();

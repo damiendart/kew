@@ -130,14 +130,13 @@ class Queue
 
     public function markJobAsUnreserved(Job $job): void
     {
-        /** @var positive-int $numberOfAttempts */
         $numberOfAttempts = $this->getJobAttempts($job);
 
         $retryInterval = $this
             ->getRetryStrategyForJob($job->id)
             ?->getRetryInterval($numberOfAttempts - 1);
 
-        if (empty($retryInterval)) {
+        if (null === $retryInterval) {
             $this->markJobAsKilled($job);
             $this->eventDispatcher?->dispatch(
                 new ExhaustedJobEvent($job, $numberOfAttempts),
@@ -154,7 +153,10 @@ class Queue
 
         $statement->bindValue(
             ':available_at',
-            $this->clock->now()->add($retryInterval)->getTimestamp(),
+            $this->clock
+                ->now()
+                ->add(new \DateInterval("PT{$retryInterval}S"))
+                ->getTimestamp(),
         );
         $statement->bindValue(':id', $job->id);
         $statement->execute();
@@ -168,6 +170,7 @@ class Queue
         $statement->execute();
     }
 
+    /** @return positive-int */
     private function getJobAttempts(Job $job): int
     {
         $statement = $this->sqliteDatabase->prepare(
@@ -177,7 +180,7 @@ class Queue
         $statement->bindValue(':id', $job->id);
         $statement->execute();
 
-        /** @var array{ attempts: int }[] $results */
+        /** @var array{ attempts: positive-int }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {

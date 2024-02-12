@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew\Tests\Unit;
 
-use DamienDart\Kew\Clocks\FrozenClock;
 use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
 
@@ -28,36 +27,24 @@ class RetryStrategyTest extends TestCase
         new RetryStrategy(-1);
     }
 
-    public function test_cannot_be_instantiated_with_negative_time_periods_for_retry_intervals(): void
+    public function test_cannot_be_instantiated_with_negative_retry_intervals(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new RetryStrategy(2, \DateInterval::createFromDateString('-1 day'));
+        new RetryStrategy(2, -10);
     }
 
-    public function test_defaults_to_an_immediate_retry_interval_if_no_retry_intervals_have_been_provided(): void
+    public function test_defaults_to_an_immediate_retry_interval_if_none_have_been_provided(): void
     {
-        $clock = new FrozenClock(new \DateTimeImmutable());
-        $now = $clock->now();
         $retryStrategy = new RetryStrategy(3);
 
-        $now->add($retryStrategy->getRetryInterval(1));
-
-        $this->assertEquals($now, $clock->now());
+        $this->assertEquals(0, $retryStrategy->getRetryInterval(1));
     }
 
     public function test_returns_the_last_retry_interval_if_more_retries_have_been_made_than_available_retry_intervals(): void
     {
-        $expectedInterval = \DateInterval::createFromDateString('+1 minute');
-        $retryStrategy = new RetryStrategy(
-            4,
-            \DateInterval::createFromDateString('+30 seconds'),
-            $expectedInterval,
-        );
+        $retryStrategy = new RetryStrategy(4, 30, 20);
 
-        $this->assertSame(
-            $expectedInterval,
-            $retryStrategy->getRetryInterval(3),
-        );
+        $this->assertEquals(20, $retryStrategy->getRetryInterval(3));
     }
 }

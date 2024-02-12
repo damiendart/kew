@@ -15,45 +15,55 @@ namespace DamienDart\Kew;
  */
 final readonly class RetryStrategy
 {
-    /** @var \DateInterval[] */
+    /** @var non-negative-int */
+    public int $maxRetryAttempts;
+
+    /** @var non-negative-int[] */
     public array $retryIntervals;
 
     /**
-     * @param int $maxRetryAttempts The maximum number of times a job should be retried
-     * @param \DateInterval ...$retryIntervals Time periods between job retries
+     * @psalm-suppress DocblockTypeContradiction
+     *
+     * @param non-negative-int $maxRetries The maximum number of times a job can be retried
+     * @param non-negative-int ...$retryIntervals Time intervals, given in seconds, between job retries
      */
     public function __construct(
-        public int $maxRetryAttempts = 2,
-        \DateInterval ...$retryIntervals,
+        int $maxRetries = 2,
+        int ...$retryIntervals,
     ) {
-        if (0 > $this->maxRetryAttempts) {
+        // @phpstan-ignore-next-line greater.alwaysFalse
+        if (0 > $maxRetries) {
             throw new \InvalidArgumentException(
                 'The number of retry attempts must be equal to or greater than zero.',
             );
         }
 
         foreach ($retryIntervals as $interval) {
-            $now = new \DateTimeImmutable();
-
-            if ($now >= $now->add($interval)) {
+            // @phpstan-ignore-next-line greater.alwaysFalse
+            if (0 > $interval) {
                 throw new \InvalidArgumentException(
-                    'Negative time periods cannot be used as retry intervals.',
+                    'A retry interval must be equal to or greater than zero seconds.',
                 );
             }
         }
 
+        $this->maxRetryAttempts = $maxRetries;
         $this->retryIntervals = $retryIntervals;
     }
 
-    /** @param int<0, max> $retryCount */
-    public function getRetryInterval(int $retryCount): \DateInterval|false
+    /**
+     * @param non-negative-int $retryCount
+     *
+     * @return ?non-negative-int
+     */
+    public function getRetryInterval(int $retryCount): ?int
     {
         if ($retryCount >= $this->maxRetryAttempts) {
-            return false;
+            return null;
         }
 
         if (0 === \count($this->retryIntervals)) {
-            return \DateInterval::createFromDateString('+0 seconds');
+            return 0;
         }
 
         return $retryCount <= \count($this->retryIntervals)
