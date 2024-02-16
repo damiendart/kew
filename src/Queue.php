@@ -102,17 +102,17 @@ class Queue
             $data['arguments'],
         );
 
-        $this->markJobAsReserved($job);
+        $this->markJobAsReserved($job->id);
 
         return $job;
     }
 
-    public function markJobAsCompleted(Job $job): void
+    public function markJobAsCompleted(UuidInterface $jobId): void
     {
-        $this->deleteJob($job);
+        $this->deleteJob($jobId);
     }
 
-    public function markJobAsKilled(Job $job): void
+    public function markJobAsKilled(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
@@ -120,11 +120,11 @@ class Queue
                 WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
     }
 
-    public function markJobAsReserved(Job $job): void
+    public function markJobAsReserved(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
@@ -132,22 +132,22 @@ class Queue
                 WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
         $statement->execute();
     }
 
-    public function markJobAsUnreserved(Job $job): void
+    public function markJobAsUnreserved(UuidInterface $jobId): void
     {
-        $numberOfAttempts = $this->getJobAttempts($job);
+        $numberOfAttempts = $this->getJobAttempts($jobId);
 
         $retryInterval = $this
-            ->getRetryStrategyForJob($job->id)
+            ->getRetryStrategyForJob($jobId)
             ?->getRetryInterval($numberOfAttempts - 1);
 
         if (null === $retryInterval) {
-            $this->markJobAsKilled($job);
-            $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
+            $this->markJobAsKilled($jobId);
+            $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
 
             return;
         }
@@ -165,52 +165,52 @@ class Queue
                 ->add(new \DateInterval("PT{$retryInterval}S"))
                 ->getTimestamp(),
         );
-        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
     }
 
-    private function deleteJob(Job $job): void
+    private function deleteJob(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
 
-        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
     }
 
     /** @return positive-int */
-    private function getJobAttempts(Job $job): int
+    private function getJobAttempts(UuidInterface $jobId): int
     {
         $statement = $this->sqliteDatabase->prepare(
             'SELECT attempts FROM jobs WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $job->id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
 
         /** @var array{ attempts: positive-int }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
-            throw new \RuntimeException("Cannot find job {$job->id}");
+            throw new \RuntimeException("Cannot find job {$jobId->toString()}");
         }
 
         return $results[0]['attempts'];
     }
 
-    private function getRetryStrategyForJob(UuidInterface $id): ?RetryStrategy
+    private function getRetryStrategyForJob(UuidInterface $jobId): ?RetryStrategy
     {
         $statement = $this->sqliteDatabase->prepare(
             'SELECT retry_strategy FROM jobs WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $id);
+        $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
 
         /** @var array{ 'retry_strategy': ?string }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
-            throw new \RuntimeException("Cannot find job {$id}");
+            throw new \RuntimeException("Cannot find job {$jobId}");
         }
 
         if (null === $results[0]['retry_strategy']) {

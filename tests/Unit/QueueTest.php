@@ -51,7 +51,7 @@ class QueueTest extends TestCase
         $jobId = $queue->createJob('test', null);
         $job = $queue->getNextJob();
 
-        $queue->markJobAsUnreserved($job);
+        $queue->markJobAsUnreserved($job->id);
 
         $latestEvent = array_pop($eventDispatcher->events);
 
@@ -90,14 +90,14 @@ class QueueTest extends TestCase
         );
 
         $job = $queue->getNextJob();
-        $queue->markJobAsUnreserved($job);
+        $queue->markJobAsUnreserved($job->id);
         $this->assertNull($queue->getNextJob());
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
         $this->assertEquals($jobId->toString(), $job->id->toString());
 
-        $queue->markJobAsUnreserved($job);
+        $queue->markJobAsUnreserved($job->id);
         $clock->setTo($clock->now()->modify('+1 minute'));
         $this->assertNull($queue->getNextJob());
 
