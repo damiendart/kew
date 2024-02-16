@@ -51,7 +51,11 @@ class Queue
         }
 
         $createdAt = $this->clock->now();
-        $uuid = $this->uuidFactory->uuid4();
+
+        // See <https://uuid.ramsey.dev/en/stable/rfc4122/version7.html>
+        // for more information about version 7 UUIDs and the advantages
+        // over versions 1 (and 6).
+        $uuid = $this->uuidFactory->uuid7();
 
         $statement = $this->sqliteDatabase->prepare(
             'INSERT INTO jobs (id, created_at, available_at, retry_strategy, payload)
