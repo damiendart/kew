@@ -20,6 +20,10 @@ use Ramsey\Uuid\UuidFactory;
 /**
  * @covers \DamienDart\Kew\AbstractExampleWorker
  *
+ * @uses \DamienDart\Kew\Job
+ * @uses \DamienDart\Kew\Queue
+ * @uses \DamienDart\Kew\Clocks\SystemClock
+ *
  * @internal
  */
 class AbstractExampleWorkerTest extends TestCase

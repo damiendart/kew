@@ -41,7 +41,7 @@ tasks:
   coverage:serve:
     cmds:
       - task: 'coverage'
-      - 'php -S localhost:8000 -t coverage/html'
+      - 'php -S localhost:4444 -t coverage/html'
     desc: 'Run all code-coverage-related tasks and run a basic web server for viewing HTML-based reports'
 
   dependencies:

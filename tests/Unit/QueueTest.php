@@ -23,6 +23,12 @@ use Ramsey\Uuid\UuidFactory;
 /**
  * @covers \DamienDart\Kew\Queue
  *
+ * @uses \DamienDart\Kew\Job
+ * @uses \DamienDart\Kew\RetryStrategy
+ * @uses \DamienDart\Kew\Clocks\FrozenClock
+ * @uses \DamienDart\Kew\Clocks\SystemClock
+ * @uses \DamienDart\Kew\Events\JobKilledEvent
+ *
  * @internal
  */
 class QueueTest extends TestCase
