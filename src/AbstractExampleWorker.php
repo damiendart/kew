@@ -35,9 +35,9 @@ abstract class AbstractExampleWorker
 
             try {
                 $this->handleJob($job);
-                $this->queue->markJobAsCompleted($job->id);
+                $this->queue->acknowledgeJob($job->id);
             } catch (\Throwable $e) {
-                $this->queue->markJobAsUnreserved($job->id);
+                $this->queue->retryJob($job->id);
                 $this->handleFailedJob($job, $e);
             }
         }

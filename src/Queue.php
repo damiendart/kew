@@ -102,7 +102,7 @@ class Queue
             $data['arguments'],
         );
 
-        $this->markJobAsReserved($job->id);
+        $this->reserveJob($job->id);
 
         return $job;
     }
@@ -110,53 +110,20 @@ class Queue
     /**
      * @throws JobNotFoundException
      */
-    public function markJobAsCompleted(UuidInterface $jobId): void
+    public function acknowledgeJob(UuidInterface $jobId): void
     {
         $this->deleteJob($jobId);
     }
 
-    public function markJobAsKilled(UuidInterface $jobId): void
-    {
-        $statement = $this->sqliteDatabase->prepare(
-            'UPDATE jobs
-                SET available_at = NULL, reserved_at = NULL
-                WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->execute();
-    }
-
     /**
      * @throws JobNotFoundException
      */
-    public function markJobAsReserved(UuidInterface $jobId): void
-    {
-        $statement = $this->sqliteDatabase->prepare(
-            'UPDATE jobs
-                SET attempts = attempts + 1, reserved_at = :reserved_at
-                WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
-        $statement->execute();
-
-        if (0 === $statement->rowCount()) {
-            throw new JobNotFoundException($jobId);
-        }
-    }
-
-    /**
-     * @throws JobNotFoundException
-     */
-    public function markJobAsUnreserved(UuidInterface $jobId): void
+    public function retryJob(UuidInterface $jobId): void
     {
         $interval = $this->calculateInterval($jobId);
 
         if (null === $interval) {
-            $this->markJobAsKilled($jobId);
-            $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
+            $this->killJob($jobId);
 
             return;
         }
@@ -241,5 +208,32 @@ class Queue
                 payload TEXT
             )',
         );
+    }
+
+    private function killJob(UuidInterface $jobId): void
+    {
+        $statement = $this->sqliteDatabase->prepare(
+            'UPDATE jobs
+                SET available_at = NULL, reserved_at = NULL
+                WHERE id = :id',
+        );
+
+        $statement->bindValue(':id', $jobId->toString());
+        $statement->execute();
+
+        $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
+    }
+
+    private function reserveJob(UuidInterface $jobId): void
+    {
+        $statement = $this->sqliteDatabase->prepare(
+            'UPDATE jobs
+                SET attempts = attempts + 1, reserved_at = :reserved_at
+                WHERE id = :id',
+        );
+
+        $statement->bindValue(':id', $jobId->toString());
+        $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
+        $statement->execute();
     }
 }
