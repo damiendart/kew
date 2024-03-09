@@ -34,7 +34,7 @@ class RetryStrategyTest extends TestCase
         new RetryStrategy(2, -10);
     }
 
-    public function test_defaults_to_an_immediate_retry_interval_if_none_have_been_provided(): void
+    public function test_defaults_to_returning_an_immediate_retry_interval_if_none_have_been_provided(): void
     {
         $retryStrategy = new RetryStrategy(3);
 
