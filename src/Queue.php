@@ -139,13 +139,9 @@ class Queue
 
     public function markJobAsUnreserved(UuidInterface $jobId): void
     {
-        $numberOfAttempts = $this->getJobAttempts($jobId);
+        $interval = $this->calculateInterval($jobId);
 
-        $retryInterval = $this
-            ->getRetryStrategyForJob($jobId)
-            ?->getRetryInterval($numberOfAttempts - 1);
-
-        if (null === $retryInterval) {
+        if (null === $interval) {
             $this->markJobAsKilled($jobId);
             $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
 
@@ -162,7 +158,7 @@ class Queue
             ':available_at',
             $this->clock
                 ->now()
-                ->add(new \DateInterval("PT{$retryInterval}S"))
+                ->add(new \DateInterval("PT{$interval}S"))
                 ->getTimestamp(),
         );
         $statement->bindValue(':id', $jobId->toString());
@@ -177,53 +173,32 @@ class Queue
         $statement->execute();
     }
 
-    /** @return positive-int */
-    private function getJobAttempts(UuidInterface $jobId): int
+    /** @return ?non-negative-int */
+    private function calculateInterval(UuidInterface $jobId): ?int
     {
         $statement = $this->sqliteDatabase->prepare(
-            'SELECT attempts FROM jobs WHERE id = :id',
+            'SELECT attempts, retry_strategy FROM jobs WHERE id = :id',
         );
 
         $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
 
-        /** @var array{ attempts: positive-int }[] $results */
+        /** @var array{ attempts: positive-int, retry_strategy: ?string }[] $results */
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
             throw new \RuntimeException("Cannot find job {$jobId->toString()}");
         }
 
-        return $results[0]['attempts'];
-    }
-
-    private function getRetryStrategyForJob(UuidInterface $jobId): ?RetryStrategy
-    {
-        $statement = $this->sqliteDatabase->prepare(
-            'SELECT retry_strategy FROM jobs WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->execute();
-
-        /** @var array{ 'retry_strategy': ?string }[] $results */
-        $results = $statement->fetchAll();
-
-        if (0 === \count($results)) {
-            throw new \RuntimeException("Cannot find job {$jobId}");
-        }
-
         if (null === $results[0]['retry_strategy']) {
             return null;
         }
 
-        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $retryStrategy */
-        $retryStrategy = json_decode($results[0]['retry_strategy'], true);
+        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $json */
+        $json = json_decode($results[0]['retry_strategy'], true);
 
-        return new RetryStrategy(
-            $retryStrategy['maxRetries'],
-            ...$retryStrategy['retryIntervals'],
-        );
+        return (new RetryStrategy($json['maxRetries'], ...$json['retryIntervals']))
+            ->getRetryInterval($results[0]['attempts'] - 1);
     }
 
     private function initialiseSqliteDatabase(string $filepath): void
