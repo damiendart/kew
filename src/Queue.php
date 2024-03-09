@@ -107,6 +107,9 @@ class Queue
         return $job;
     }
 
+    /**
+     * @throws JobNotFoundException
+     */
     public function markJobAsCompleted(UuidInterface $jobId): void
     {
         $this->deleteJob($jobId);
@@ -124,6 +127,9 @@ class Queue
         $statement->execute();
     }
 
+    /**
+     * @throws JobNotFoundException
+     */
     public function markJobAsReserved(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare(
@@ -135,8 +141,15 @@ class Queue
         $statement->bindValue(':id', $jobId->toString());
         $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
         $statement->execute();
+
+        if (0 === $statement->rowCount()) {
+            throw new JobNotFoundException($jobId);
+        }
     }
 
+    /**
+     * @throws JobNotFoundException
+     */
     public function markJobAsUnreserved(UuidInterface $jobId): void
     {
         $interval = $this->calculateInterval($jobId);
@@ -165,15 +178,26 @@ class Queue
         $statement->execute();
     }
 
+    /**
+     * @throws JobNotFoundException
+     */
     private function deleteJob(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
 
         $statement->bindValue(':id', $jobId->toString());
         $statement->execute();
+
+        if (0 === $statement->rowCount()) {
+            throw new JobNotFoundException($jobId);
+        }
     }
 
-    /** @return ?non-negative-int */
+    /**
+     * @return ?non-negative-int
+     *
+     * @throws JobNotFoundException
+     */
     private function calculateInterval(UuidInterface $jobId): ?int
     {
         $statement = $this->sqliteDatabase->prepare(
@@ -187,7 +211,7 @@ class Queue
         $results = $statement->fetchAll();
 
         if (0 === \count($results)) {
-            throw new \RuntimeException("Cannot find job {$jobId->toString()}");
+            throw new JobNotFoundException($jobId);
         }
 
         if (null === $results[0]['retry_strategy']) {
