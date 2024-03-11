@@ -60,7 +60,7 @@ class Queue
     ): UuidInterface {
         // @phpstan-ignore-next-line identical.alwaysFalse
         if ('' === $type) {
-            throw new \InvalidArgumentException('A job name cannot be an empty string.');
+            throw new \InvalidArgumentException('A job type cannot be an empty string.');
         }
 
         $createdAt = $this->clock->now();
