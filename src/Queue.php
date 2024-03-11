@@ -11,6 +11,8 @@ declare(strict_types=1);
 namespace DamienDart\Kew;
 
 use DamienDart\Kew\Events\JobKilledEvent;
+use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
+use DamienDart\Kew\Exceptions\JobNotFoundException;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;

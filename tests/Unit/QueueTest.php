@@ -14,7 +14,7 @@ use DamienDart\Kew\Clocks\FrozenClock;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\JobKilledEvent;
-use DamienDart\Kew\JobAlreadyRescheduledException;
+use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
@@ -25,7 +25,7 @@ use Ramsey\Uuid\UuidFactory;
  * @covers \DamienDart\Kew\Queue
  *
  * @uses \DamienDart\Kew\Job
- * @uses \DamienDart\Kew\JobAlreadyRescheduledException
+ * @uses \DamienDart\Kew\Exceptions\JobAlreadyRescheduledException
  * @uses \DamienDart\Kew\RetryStrategy
  * @uses \DamienDart\Kew\Clocks\FrozenClock
  * @uses \DamienDart\Kew\Clocks\SystemClock

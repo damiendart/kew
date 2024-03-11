@@ -8,15 +8,15 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew;
+namespace DamienDart\Kew\Exceptions;
 
 use Ramsey\Uuid\UuidInterface;
 
-class JobAlreadyRescheduledException extends \Exception
+class JobNotFoundException extends \Exception
 {
     public function __construct(
         readonly public UuidInterface $jobId,
     ) {
-        parent::__construct("Job {$this->jobId->toString()} has already been rescheduled.");
+        parent::__construct("Job {$this->jobId->toString()} cannot be found.");
     }
 }
