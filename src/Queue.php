@@ -29,7 +29,20 @@ class Queue
         private readonly UuidFactory $uuidFactory,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
-        $this->initialiseSqliteDatabase($databaseFilepath);
+        $this->sqliteDatabase = new \PDO("sqlite:{$databaseFilepath}");
+
+        $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
+        $this->sqliteDatabase->exec(
+            'CREATE TABLE IF NOT EXISTS jobs(
+                id TEXT PRIMARY KEY UNIQUE,
+                created_at TEXT,
+                available_at TEXT,
+                reserved_at TEXT DEFAULT NULL,
+                attempts INT DEFAULT 0,
+                retry_strategy TEXT DEFAULT NULL,
+                payload TEXT
+            )',
+        );
     }
 
     /**
@@ -75,7 +88,8 @@ class Queue
 
     public function getNextJob(): ?Job
     {
-        $statement = $this->sqliteDatabase->prepare(
+        $now = $this->clock->now();
+        $selectStatement = $this->sqliteDatabase->prepare(
             'SELECT id, payload FROM jobs
                 WHERE reserved_at IS NULL
                     AND available_at IS NOT NULL
@@ -83,11 +97,11 @@ class Queue
                 LIMIT 1',
         );
 
-        $statement->bindValue(':available_at', $this->clock->now()->getTimestamp());
-        $statement->execute();
+        $selectStatement->bindValue(':available_at', $now->getTimestamp());
+        $selectStatement->execute();
 
         /** @var array{ 'id': string, 'payload': string }[] $results */
-        $results = $statement->fetchAll();
+        $results = $selectStatement->fetchAll();
 
         if (0 === \count($results)) {
             return null;
@@ -102,7 +116,15 @@ class Queue
             $data['arguments'],
         );
 
-        $this->reserveJob($job->id);
+        $updateStatement = $this->sqliteDatabase->prepare(
+            'UPDATE jobs
+                SET attempts = attempts + 1, reserved_at = :reserved_at
+                WHERE id = :id',
+        );
+
+        $updateStatement->bindValue(':id', $job->id->toString());
+        $updateStatement->bindValue(':reserved_at', $now->getTimestamp());
+        $updateStatement->execute();
 
         return $job;
     }
@@ -120,7 +142,31 @@ class Queue
      */
     public function retryJob(UuidInterface $jobId): void
     {
-        $interval = $this->calculateInterval($jobId);
+        $selectStatement = $this->sqliteDatabase->prepare(
+            'SELECT attempts, retry_strategy FROM jobs WHERE id = :id',
+        );
+
+        $selectStatement->bindValue(':id', $jobId->toString());
+        $selectStatement->execute();
+
+        /** @var array{ attempts: positive-int, reserved_at: string, retry_strategy: ?string }[] $results */
+        $results = $selectStatement->fetchAll();
+
+        if (0 === \count($results)) {
+            throw new JobNotFoundException($jobId);
+        }
+
+        if (null === $results[0]['retry_strategy']) {
+            $this->killJob($jobId);
+
+            return;
+        }
+
+        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $data */
+        $data = json_decode($results[0]['retry_strategy'], true);
+
+        $interval = (new RetryStrategy($data['maxRetries'], ...$data['retryIntervals']))
+            ->getRetryInterval($results[0]['attempts'] - 1);
 
         if (null === $interval) {
             $this->killJob($jobId);
@@ -128,21 +174,21 @@ class Queue
             return;
         }
 
-        $statement = $this->sqliteDatabase->prepare(
+        $updateStatement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
                 SET available_at = :available_at, reserved_at = NULL
                 WHERE id = :id',
         );
 
-        $statement->bindValue(
+        $updateStatement->bindValue(
             ':available_at',
             $this->clock
                 ->now()
                 ->add(new \DateInterval("PT{$interval}S"))
                 ->getTimestamp(),
         );
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->execute();
+        $updateStatement->bindValue(':id', $jobId->toString());
+        $updateStatement->execute();
     }
 
     /**
@@ -160,56 +206,6 @@ class Queue
         }
     }
 
-    /**
-     * @return ?non-negative-int
-     *
-     * @throws JobNotFoundException
-     */
-    private function calculateInterval(UuidInterface $jobId): ?int
-    {
-        $statement = $this->sqliteDatabase->prepare(
-            'SELECT attempts, retry_strategy FROM jobs WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->execute();
-
-        /** @var array{ attempts: positive-int, retry_strategy: ?string }[] $results */
-        $results = $statement->fetchAll();
-
-        if (0 === \count($results)) {
-            throw new JobNotFoundException($jobId);
-        }
-
-        if (null === $results[0]['retry_strategy']) {
-            return null;
-        }
-
-        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $json */
-        $json = json_decode($results[0]['retry_strategy'], true);
-
-        return (new RetryStrategy($json['maxRetries'], ...$json['retryIntervals']))
-            ->getRetryInterval($results[0]['attempts'] - 1);
-    }
-
-    private function initialiseSqliteDatabase(string $filepath): void
-    {
-        $this->sqliteDatabase = new \PDO("sqlite:{$filepath}");
-
-        $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
-        $this->sqliteDatabase->exec(
-            'CREATE TABLE IF NOT EXISTS jobs(
-                id TEXT PRIMARY KEY UNIQUE,
-                created_at TEXT,
-                available_at TEXT,
-                reserved_at TEXT DEFAULT NULL,
-                attempts INT DEFAULT 0,
-                retry_strategy TEXT DEFAULT NULL,
-                payload TEXT
-            )',
-        );
-    }
-
     private function killJob(UuidInterface $jobId): void
     {
         $statement = $this->sqliteDatabase->prepare(
@@ -222,18 +218,5 @@ class Queue
         $statement->execute();
 
         $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
-    }
-
-    private function reserveJob(UuidInterface $jobId): void
-    {
-        $statement = $this->sqliteDatabase->prepare(
-            'UPDATE jobs
-                SET attempts = attempts + 1, reserved_at = :reserved_at
-                WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $jobId->toString());
-        $statement->bindValue(':reserved_at', $this->clock->now()->getTimestamp());
-        $statement->execute();
     }
 }
