@@ -138,22 +138,27 @@ class Queue
     }
 
     /**
+     * @throws JobAlreadyRescheduledException
      * @throws JobNotFoundException
      */
     public function retryJob(UuidInterface $jobId): void
     {
         $selectStatement = $this->sqliteDatabase->prepare(
-            'SELECT attempts, retry_strategy FROM jobs WHERE id = :id',
+            'SELECT attempts, reserved_at, retry_strategy FROM jobs WHERE id = :id',
         );
 
         $selectStatement->bindValue(':id', $jobId->toString());
         $selectStatement->execute();
 
-        /** @var array{ attempts: positive-int, reserved_at: string, retry_strategy: ?string }[] $results */
+        /** @var array{ attempts: positive-int, reserved_at: ?string, retry_strategy: ?string }[] $results */
         $results = $selectStatement->fetchAll();
 
         if (0 === \count($results)) {
             throw new JobNotFoundException($jobId);
+        }
+
+        if (null === $results[0]['reserved_at']) {
+            throw new JobAlreadyRescheduledException($jobId);
         }
 
         if (null === $results[0]['retry_strategy']) {

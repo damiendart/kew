@@ -14,6 +14,7 @@ use DamienDart\Kew\Clocks\FrozenClock;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\JobKilledEvent;
+use DamienDart\Kew\JobAlreadyRescheduledException;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
@@ -24,6 +25,7 @@ use Ramsey\Uuid\UuidFactory;
  * @covers \DamienDart\Kew\Queue
  *
  * @uses \DamienDart\Kew\Job
+ * @uses \DamienDart\Kew\JobAlreadyRescheduledException
  * @uses \DamienDart\Kew\RetryStrategy
  * @uses \DamienDart\Kew\Clocks\FrozenClock
  * @uses \DamienDart\Kew\Clocks\SystemClock
@@ -110,5 +112,17 @@ class QueueTest extends TestCase
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
         $this->assertEquals($jobId->toString(), $job->id->toString());
+    }
+
+    public function test_cannot_retry_a_job_that_is_already_rescheduled(): void
+    {
+        $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
+
+        $jobId = $queue->createJob('test', null, new RetryStrategy(2, 5));
+
+        $this->expectException(JobAlreadyRescheduledException::class);
+
+        $queue->retryJob($jobId);
+        $queue->retryJob($jobId);
     }
 }
