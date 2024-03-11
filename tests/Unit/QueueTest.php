@@ -35,38 +35,6 @@ use Ramsey\Uuid\UuidFactory;
  */
 class QueueTest extends TestCase
 {
-    public function test_provides_a_notification_when_a_job_can_no_longer_be_retried(): void
-    {
-        $eventDispatcher = new class () implements EventDispatcherInterface {
-            /** @var AbstractEvent[] */
-            public array $events = [];
-
-            public function dispatch(object $event): object
-            {
-                $this->events[] = $event;
-
-                return $event;
-            }
-        };
-
-        $queue = new Queue(
-            ':memory:',
-            new SystemClock(),
-            new UuidFactory(),
-            $eventDispatcher,
-        );
-
-        $jobId = $queue->createJob('test', null);
-        $job = $queue->getNextJob();
-
-        $queue->retryJob($job->id);
-
-        $latestEvent = array_pop($eventDispatcher->events);
-
-        $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
-        $this->assertEquals($latestEvent->jobId->toString(), $jobId->toString());
-    }
-
     public function test_can_schedule_jobs(): void
     {
         $clock = new FrozenClock(new \DateTimeImmutable());
@@ -124,5 +92,37 @@ class QueueTest extends TestCase
 
         $queue->retryJob($jobId);
         $queue->retryJob($jobId);
+    }
+
+    public function test_provides_a_notification_when_a_job_has_exhausted_its_retries(): void
+    {
+        $eventDispatcher = new class () implements EventDispatcherInterface {
+            /** @var AbstractEvent[] */
+            public array $events = [];
+
+            public function dispatch(object $event): object
+            {
+                $this->events[] = $event;
+
+                return $event;
+            }
+        };
+
+        $queue = new Queue(
+            ':memory:',
+            new SystemClock(),
+            new UuidFactory(),
+            $eventDispatcher,
+        );
+
+        $jobId = $queue->createJob('test', null);
+        $job = $queue->getNextJob();
+
+        $queue->retryJob($job->id);
+
+        $latestEvent = array_pop($eventDispatcher->events);
+
+        $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
+        $this->assertEquals($latestEvent->jobId->toString(), $jobId->toString());
     }
 }
