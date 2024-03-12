@@ -15,6 +15,7 @@ use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\JobKilledEvent;
 use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
+use DamienDart\Kew\Exceptions\RetryingKilledJobException;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,7 @@ use Ramsey\Uuid\UuidFactory;
  *
  * @uses \DamienDart\Kew\Job
  * @uses \DamienDart\Kew\Exceptions\JobAlreadyRescheduledException
+ * @uses \DamienDart\Kew\Exceptions\RetryingKilledJobException
  * @uses \DamienDart\Kew\RetryStrategy
  * @uses \DamienDart\Kew\Clocks\FrozenClock
  * @uses \DamienDart\Kew\Clocks\SystemClock
@@ -92,6 +94,20 @@ class QueueTest extends TestCase
 
         $queue->retryJob($jobId);
         $queue->retryJob($jobId);
+    }
+
+    public function test_cannot_retry_a_killed_job(): void
+    {
+        $this->expectException(RetryingKilledJobException::class);
+
+        $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
+
+        $queue->createJob('test', null);
+
+        $job = $queue->getNextJob();
+
+        $queue->retryJob($job->id);
+        $queue->retryJob($job->id);
     }
 
     public function test_provides_a_notification_when_a_job_has_exhausted_its_retries(): void
