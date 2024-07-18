@@ -16,6 +16,7 @@ use DamienDart\Kew\Events\AbstractEvent;
 use DamienDart\Kew\Events\JobKilledEvent;
 use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
 use DamienDart\Kew\Exceptions\RetryingKilledJobException;
+use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\TestCase;
@@ -53,6 +54,26 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+5 minutes'));
         $job = $queue->getNextJob();
+        $this->assertEquals($jobId->toString(), $job->id->toString());
+    }
+
+    /** @testdox Can schedule jobs using non-UTC timestamps */
+    public function test_can_schedule_jobs_using_non_utc_timestamps(): void
+    {
+        $clock = new FrozenClock(new \DateTimeImmutable('2024-07-17T12:00:00+00:00'));
+        $queue = new Queue(':memory:', $clock, new UuidFactory());
+
+        $jobId = $queue->createJob(
+            'test',
+            null,
+            null,
+            new \DateTimeImmutable('2024-07-17T14:05:00+02:00'),
+        );
+
+        $clock->setTo($clock->now()->modify('+5 minutes'));
+        $job = $queue->getNextJob();
+
+        $this->assertInstanceOf(Job::class, $job);
         $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 

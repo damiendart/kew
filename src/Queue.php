@@ -78,8 +78,8 @@ class Queue
                 VALUES (:id, :created_at, :available_at, :retry_strategy, :payload)',
         );
 
-        $statement->bindValue(':available_at', ($availableAt ?? $createdAt)->getTimestamp());
-        $statement->bindValue(':created_at', $createdAt->getTimestamp());
+        $statement->bindValue(':available_at', $this->formatTimestamp($availableAt ?? $createdAt));
+        $statement->bindValue(':created_at', $this->formatTimestamp($createdAt));
         $statement->bindValue(':id', $uuid);
         $statement->bindValue(':payload', json_encode(['arguments' => $arguments, 'type' => $type]));
         $statement->bindValue(':retry_strategy', (null === $retryStrategy) ? null : json_encode($retryStrategy));
@@ -100,7 +100,7 @@ class Queue
                 LIMIT 1',
         );
 
-        $selectStatement->bindValue(':available_at', $now->getTimestamp());
+        $selectStatement->bindValue(':available_at', $this->formatTimestamp($now));
         $selectStatement->execute();
 
         /** @var array{ 'id': string, 'payload': string }[] $results */
@@ -126,7 +126,7 @@ class Queue
         );
 
         $updateStatement->bindValue(':id', $job->id->toString());
-        $updateStatement->bindValue(':reserved_at', $now->getTimestamp());
+        $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
         $updateStatement->execute();
 
         return $job;
@@ -195,10 +195,11 @@ class Queue
 
         $updateStatement->bindValue(
             ':available_at',
-            $this->clock
-                ->now()
-                ->add(new \DateInterval("PT{$interval}S"))
-                ->getTimestamp(),
+            $this->formatTimestamp(
+                $this->clock
+                    ->now()
+                    ->add(new \DateInterval("PT{$interval}S")),
+            ),
         );
         $updateStatement->bindValue(':id', $jobId->toString());
         $updateStatement->execute();
@@ -231,5 +232,12 @@ class Queue
         $statement->execute();
 
         $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
+    }
+
+    private function formatTimestamp(\DateTimeInterface $date): string
+    {
+        return \DateTimeImmutable::createFromInterface($date)
+            ->setTimezone(new \DateTimeZone('UTC'))
+            ->format(\DateTimeInterface::ATOM);
     }
 }
