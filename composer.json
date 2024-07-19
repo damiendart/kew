@@ -1,4 +1,12 @@
 {
+  "authors": [
+    {
+      "email": "damiendart@pobox.com",
+      "homepage": "https://www.robotinaponcho.net",
+      "name": "Damien Dart",
+      "role": "Developer"
+    }
+  ],
   "autoload": {
     "psr-4": {
       "DamienDart\\Kew\\": "src/"
@@ -9,6 +17,12 @@
       "DamienDart\\Kew\\Tests\\": "tests/"
     }
   },
+  "config": {
+    "sort-packages": true
+  },
+  "description": "A very basic SQLite-backed background task queue.",
+  "license": "MIT",
+  "name": "damiendart/kew",
   "require": {
     "ext-pdo": "*",
     "php": "^8.2",
@@ -22,5 +36,6 @@
     "phpstan/phpstan": "^1.10.45",
     "phpstan/phpstan-strict-rules": "^1.5",
     "phpunit/phpunit": "^10.4.2"
-  }
+  },
+  "type": "library"
 }
