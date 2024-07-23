@@ -8,13 +8,16 @@
 
 declare(strict_types=1);
 
+use PhpCsFixer\Config;
+use PhpCsFixer\Finder;
+
 $header = <<<'HEADER'
 Copyright (C) Damien Dart, <damiendart@pobox.com>.
 This file is distributed under the MIT licence. For more information,
 please refer to the accompanying "LICENCE" file.
 HEADER;
 
-return (new PhpCsFixer\Config())
+return (new Config())
     ->setRules(
         [
             '@PhpCsFixer' => true,
@@ -44,12 +47,8 @@ return (new PhpCsFixer\Config())
         ],
     )
     ->setFinder(
-        PhpCsFixer\Finder::create()
-            ->in(
-                [
-                    __DIR__ . DIRECTORY_SEPARATOR . 'src',
-                    __DIR__ . DIRECTORY_SEPARATOR . 'tests',
-                ],
-            )
-            ->name('*.php'),
+        Finder::create()
+            ->ignoreDotFiles(false)
+            ->ignoreVCSIgnored(true)
+            ->in(__DIR__),
     );
