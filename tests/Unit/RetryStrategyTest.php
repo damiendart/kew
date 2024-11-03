@@ -20,31 +20,25 @@ use PHPUnit\Framework\TestCase;
  */
 class RetryStrategyTest extends TestCase
 {
-    public function test_cannot_be_instantiated_with_a_negative_number_of_retries(): void
+    public function test_can_be_instantiated_with_no_retry_intervals(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-
-        new RetryStrategy(-1);
+        $this->assertInstanceOf(RetryStrategy::class, new RetryStrategy());
     }
 
     public function test_cannot_be_instantiated_with_negative_retry_intervals(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new RetryStrategy(2, -10);
+        new RetryStrategy(-10);
     }
 
-    public function test_defaults_to_returning_an_immediate_retry_interval_if_none_have_been_provided(): void
+    public function test_returns_the_correct_retry_interval(): void
     {
-        $retryStrategy = new RetryStrategy(3);
+        $retryStrategy = new RetryStrategy(30, 20, 10);
 
-        $this->assertEquals(0, $retryStrategy->getRetryInterval(1));
-    }
-
-    public function test_returns_the_last_retry_interval_if_more_retries_have_been_made_than_available_retry_intervals(): void
-    {
-        $retryStrategy = new RetryStrategy(4, 30, 20);
-
-        $this->assertEquals(20, $retryStrategy->getRetryInterval(3));
+        $this->assertEquals(30, $retryStrategy->getRetryInterval(1));
+        $this->assertEquals(20, $retryStrategy->getRetryInterval(2));
+        $this->assertEquals(10, $retryStrategy->getRetryInterval(3));
+        $this->assertEquals(null, $retryStrategy->getRetryInterval(4));
     }
 }

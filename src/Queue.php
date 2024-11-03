@@ -175,11 +175,11 @@ class Queue
             return;
         }
 
-        /** @var array{ 'maxRetries': non-negative-int, 'retryIntervals': non-negative-int[] } $data */
+        /** @var array{ 'retryIntervals': non-negative-int[] } $data */
         $data = json_decode($results[0]['retry_strategy'], true);
 
-        $interval = (new RetryStrategy($data['maxRetries'], ...$data['retryIntervals']))
-            ->getRetryInterval($results[0]['attempts'] - 1);
+        $interval = (new RetryStrategy(...$data['retryIntervals']))
+            ->getRetryInterval($results[0]['attempts']);
 
         if (null === $interval) {
             $this->killJob($jobId);

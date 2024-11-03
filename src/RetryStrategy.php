@@ -15,29 +15,16 @@ namespace DamienDart\Kew;
  */
 final readonly class RetryStrategy implements \JsonSerializable
 {
-    /** @var non-negative-int */
-    public int $maxRetryAttempts;
-
     /** @var non-negative-int[] */
     public array $retryIntervals;
 
     /**
-     * @psalm-suppress DocblockTypeContradiction
+     * @param non-negative-int ...$retryIntervals Time intervals, given in seconds, between job attempts
      *
-     * @param non-negative-int $maxRetries The maximum number of times a job can be retried
-     * @param non-negative-int ...$retryIntervals Time intervals, given in seconds, between job retries
+     * @psalm-suppress DocblockTypeContradiction
      */
-    public function __construct(
-        int $maxRetries = 2,
-        int ...$retryIntervals,
-    ) {
-        // @phpstan-ignore-next-line greater.alwaysFalse
-        if (0 > $maxRetries) {
-            throw new \InvalidArgumentException(
-                'The number of retry attempts must be equal to or greater than zero.',
-            );
-        }
-
+    public function __construct(int ...$retryIntervals)
+    {
         foreach ($retryIntervals as $interval) {
             // @phpstan-ignore-next-line greater.alwaysFalse
             if (0 > $interval) {
@@ -47,40 +34,31 @@ final readonly class RetryStrategy implements \JsonSerializable
             }
         }
 
-        $this->maxRetryAttempts = $maxRetries;
         $this->retryIntervals = $retryIntervals;
     }
 
     /**
-     * @param non-negative-int $retryCount
+     * @param non-negative-int $attemptCount
      *
      * @return ?non-negative-int
      */
-    public function getRetryInterval(int $retryCount): ?int
+    public function getRetryInterval(int $attemptCount): ?int
     {
-        if ($retryCount >= $this->maxRetryAttempts) {
+        if ($attemptCount > \count($this->retryIntervals)) {
             return null;
         }
 
-        if (0 === \count($this->retryIntervals)) {
-            return 0;
-        }
-
-        return $retryCount <= \count($this->retryIntervals)
-            ? $this->retryIntervals[$retryCount]
-            : $this->retryIntervals[\count($this->retryIntervals) - 1];
+        return $this->retryIntervals[$attemptCount - 1];
     }
 
     /**
      * @return array{
-     *     'maxRetries': non-negative-int,
      *     'retryIntervals': non-negative-int[],
      * }
      */
     public function jsonSerialize(): array
     {
         return [
-            'maxRetries' => $this->maxRetryAttempts,
             'retryIntervals' => $this->retryIntervals,
         ];
     }

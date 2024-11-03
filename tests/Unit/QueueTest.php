@@ -85,7 +85,7 @@ class QueueTest extends TestCase
         $jobId = $queue->createJob(
             'test',
             null,
-            new RetryStrategy(2, 60, 120),
+            new RetryStrategy(60, 120),
         );
 
         $job = $queue->getNextJob();
@@ -94,6 +94,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
+        $this->assertInstanceOf(Job::class, $job);
         $this->assertEquals($jobId->toString(), $job->id->toString());
 
         $queue->retryJob($job->id);
@@ -102,6 +103,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
+        $this->assertInstanceOf(Job::class, $job);
         $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 
