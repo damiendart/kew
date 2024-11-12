@@ -19,23 +19,24 @@ use DamienDart\Kew\Exceptions\RetryingKilledJobException;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\RetryStrategy;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 
 /**
- * @covers \DamienDart\Kew\Queue
- *
- * @uses \DamienDart\Kew\Job
- * @uses \DamienDart\Kew\Exceptions\JobAlreadyRescheduledException
- * @uses \DamienDart\Kew\Exceptions\RetryingKilledJobException
- * @uses \DamienDart\Kew\RetryStrategy
- * @uses \DamienDart\Kew\Clocks\FrozenClock
- * @uses \DamienDart\Kew\Clocks\SystemClock
- * @uses \DamienDart\Kew\Events\JobKilledEvent
- *
  * @internal
  */
+#[CoversClass(Queue::class)]
+#[UsesClass(FrozenClock::class)]
+#[UsesClass(Job::class)]
+#[UsesClass(JobAlreadyRescheduledException::class)]
+#[UsesClass(JobKilledEvent::class)]
+#[UsesClass(RetryStrategy::class)]
+#[UsesClass(RetryingKilledJobException::class)]
+#[UsesClass(SystemClock::class)]
 class QueueTest extends TestCase
 {
     public function test_can_schedule_jobs(): void
@@ -57,7 +58,7 @@ class QueueTest extends TestCase
         $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 
-    /** @testdox Can schedule jobs using non-UTC timestamps */
+    #[TestDox('Can schedule jobs using non-UTC timestamps')]
     public function test_can_schedule_jobs_using_non_utc_timestamps(): void
     {
         $clock = new FrozenClock(new \DateTimeImmutable('2024-07-17T12:00:00+00:00'));

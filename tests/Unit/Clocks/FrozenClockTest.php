@@ -11,13 +11,13 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit\Clocks;
 
 use DamienDart\Kew\Clocks\FrozenClock;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \DamienDart\Kew\Clocks\FrozenClock
- *
  * @internal
  */
+#[CoversClass(FrozenClock::class)]
 final class FrozenClockTest extends TestCase
 {
     public function test_returns_the_initially_provided_date_and_time(): void

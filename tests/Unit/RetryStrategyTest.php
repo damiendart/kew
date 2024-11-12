@@ -11,13 +11,13 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit;
 
 use DamienDart\Kew\RetryStrategy;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \DamienDart\Kew\RetryStrategy
- *
  * @internal
  */
+#[CoversClass(RetryStrategy::class)]
 class RetryStrategyTest extends TestCase
 {
     public function test_can_be_instantiated_with_no_retry_intervals(): void

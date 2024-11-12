@@ -11,13 +11,13 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit\Clocks;
 
 use DamienDart\Kew\Clocks\SystemClock;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \DamienDart\Kew\Clocks\SystemClock
- *
  * @internal
  */
+#[CoversClass(SystemClock::class)]
 final class SystemClockTest extends TestCase
 {
     public function test_returns_the_current_date_and_time(): void

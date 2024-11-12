@@ -14,18 +14,18 @@ use DamienDart\Kew\AbstractExampleWorker;
 use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\UuidFactory;
 
 /**
- * @covers \DamienDart\Kew\AbstractExampleWorker
- *
- * @uses \DamienDart\Kew\Job
- * @uses \DamienDart\Kew\Queue
- * @uses \DamienDart\Kew\Clocks\SystemClock
- *
  * @internal
  */
+#[CoversClass(AbstractExampleWorker::class)]
+#[UsesClass(Job::class)]
+#[UsesClass(Queue::class)]
+#[UsesClass(SystemClock::class)]
 class AbstractExampleWorkerTest extends TestCase
 {
     public function test_can_handle_jobs(): void
