@@ -82,7 +82,7 @@ tasks:
 
   static-analysis:php:psalm:
     cmds:
-      - 'vendor/bin/psalm --no-diff --show-info=true --stats'
+      - 'vendor/bin/psalm.phar --no-diff --show-info=true --stats'
     desc: 'Analyse PHP files with Psalm'
 
   test:

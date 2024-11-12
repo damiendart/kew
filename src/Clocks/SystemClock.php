@@ -24,9 +24,6 @@ class SystemClock implements ClockInterface
         $this->timezone = $timezone;
     }
 
-    /**
-     * @throws \Exception
-     */
     public function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('now', $this->timezone);
