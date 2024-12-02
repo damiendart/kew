@@ -42,47 +42,57 @@ class Queue
                 available_at TEXT,
                 reserved_at TEXT DEFAULT NULL,
                 attempts INT DEFAULT 0,
-                retry_strategy TEXT DEFAULT NULL,
+                retry_intervals TEXT DEFAULT NULL,
                 payload TEXT
             )',
         );
     }
 
     /**
+     * Creates a job on the queue. The number of times a job is retried
+     * in inferred from the number of retry intervals provided. The
+     * `availableAt` parameter is stored as UTC and future time zone
+     * rule changes are not handled.
+     *
      * @psalm-api
      *
      * @psalm-suppress TypeDoesNotContainType
+     * @psalm-suppress DocblockTypeContradiction
      *
      * @param non-empty-string $type
+     * @param non-negative-int ...$retryIntervals Retry intervals, given in seconds, between job attempts
      */
     public function createJob(
         string $type,
         mixed $arguments,
-        ?RetryStrategy $retryStrategy = null,
         ?\DateTimeInterface $availableAt = null,
+        int ...$retryIntervals,
     ): UuidInterface {
         // @phpstan-ignore-next-line identical.alwaysFalse
         if ('' === $type) {
             throw new \InvalidArgumentException('A job type cannot be an empty string.');
         }
 
-        $createdAt = $this->clock->now();
+        foreach ($retryIntervals as $interval) {
+            // @phpstan-ignore-next-line greater.alwaysFalse
+            if (0 > $interval) {
+                throw new \InvalidArgumentException('A retry interval must be equal to or greater than zero seconds.');
+            }
+        }
 
-        // See <https://uuid.ramsey.dev/en/stable/rfc4122/version7.html>
-        // for more information about version 7 UUIDs and the advantages
-        // over versions 1 (and 6).
+        $createdAt = $this->clock->now();
         $uuid = $this->uuidFactory->uuid7();
 
         $statement = $this->sqliteDatabase->prepare(
-            'INSERT INTO jobs (id, created_at, available_at, retry_strategy, payload)
-                VALUES (:id, :created_at, :available_at, :retry_strategy, :payload)',
+            'INSERT INTO jobs (id, created_at, available_at, retry_intervals, payload)
+                VALUES (:id, :created_at, :available_at, :retry_intervals, :payload)',
         );
 
         $statement->bindValue(':available_at', $this->formatTimestamp($availableAt ?? $createdAt));
         $statement->bindValue(':created_at', $this->formatTimestamp($createdAt));
         $statement->bindValue(':id', $uuid);
         $statement->bindValue(':payload', json_encode(['arguments' => $arguments, 'type' => $type]));
-        $statement->bindValue(':retry_strategy', (null === $retryStrategy) ? null : json_encode($retryStrategy));
+        $statement->bindValue(':retry_intervals', json_encode($retryIntervals));
 
         $statement->execute();
 
@@ -148,13 +158,13 @@ class Queue
     public function retryJob(UuidInterface $jobId): void
     {
         $selectStatement = $this->sqliteDatabase->prepare(
-            'SELECT attempts, available_at, reserved_at, retry_strategy FROM jobs WHERE id = :id',
+            'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
         );
 
         $selectStatement->bindValue(':id', $jobId->toString());
         $selectStatement->execute();
 
-        /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_strategy: ?string }[] $results */
+        /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
         $results = $selectStatement->fetchAll();
 
         if (0 === \count($results)) {
@@ -169,23 +179,16 @@ class Queue
             throw new JobAlreadyRescheduledException($jobId);
         }
 
-        if (null === $results[0]['retry_strategy']) {
+        /** @var non-negative-int[] $intervals */
+        $intervals = json_decode($results[0]['retry_intervals'], true);
+
+        if ($results[0]['attempts'] > \count($intervals)) {
             $this->killJob($jobId);
 
             return;
         }
 
-        /** @var array{ 'retryIntervals': non-negative-int[] } $data */
-        $data = json_decode($results[0]['retry_strategy'], true);
-
-        $interval = (new RetryStrategy(...$data['retryIntervals']))
-            ->getRetryInterval($results[0]['attempts']);
-
-        if (null === $interval) {
-            $this->killJob($jobId);
-
-            return;
-        }
+        $interval = $intervals[$results[0]['attempts'] - 1];
 
         $updateStatement = $this->sqliteDatabase->prepare(
             'UPDATE jobs

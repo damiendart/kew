@@ -18,7 +18,6 @@ use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
 use DamienDart\Kew\Exceptions\RetryingKilledJobException;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
-use DamienDart\Kew\RetryStrategy;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -34,7 +33,6 @@ use Ramsey\Uuid\UuidFactory;
 #[UsesClass(Job::class)]
 #[UsesClass(JobAlreadyRescheduledException::class)]
 #[UsesClass(JobKilledEvent::class)]
-#[UsesClass(RetryStrategy::class)]
 #[UsesClass(RetryingKilledJobException::class)]
 #[UsesClass(SystemClock::class)]
 class QueueTest extends TestCase
@@ -46,7 +44,6 @@ class QueueTest extends TestCase
 
         $jobId = $queue->createJob(
             'test',
-            null,
             null,
             $clock->now()->modify('+5 minutes'),
         );
@@ -67,7 +64,6 @@ class QueueTest extends TestCase
         $jobId = $queue->createJob(
             'test',
             null,
-            null,
             new \DateTimeImmutable('2024-07-17T14:05:00+02:00'),
         );
 
@@ -78,7 +74,7 @@ class QueueTest extends TestCase
         $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 
-    public function test_honours_retry_intervals(): void
+    public function test_honours_retry_intervals_when_a_job_is_retried(): void
     {
         $clock = new FrozenClock(new \DateTimeImmutable());
         $queue = new Queue(':memory:', $clock, new UuidFactory());
@@ -86,7 +82,9 @@ class QueueTest extends TestCase
         $jobId = $queue->createJob(
             'test',
             null,
-            new RetryStrategy(60, 120),
+            null,
+            60,
+            120,
         );
 
         $job = $queue->getNextJob();
@@ -108,11 +106,19 @@ class QueueTest extends TestCase
         $this->assertEquals($jobId->toString(), $job->id->toString());
     }
 
+    public function test_cannot_create_a_job_with_negative_retry_intervals(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new Queue(':memory:', new SystemClock(), new UuidFactory()))
+            ->createJob('test', null, null, -20);
+    }
+
     public function test_cannot_retry_a_job_that_is_already_rescheduled(): void
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $jobId = $queue->createJob('test', null, new RetryStrategy(2, 5));
+        $jobId = $queue->createJob('test', null, null, 2, 5);
 
         $this->expectException(JobAlreadyRescheduledException::class);
 
