@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew\Clocks;
+namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 

@@ -8,9 +8,9 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew\Tests\Unit\Clocks;
+namespace DamienDart\Kew\Tests\Unit;
 
-use DamienDart\Kew\Clocks\FrozenClock;
+use DamienDart\Kew\FrozenClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

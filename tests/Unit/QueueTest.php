@@ -10,14 +10,14 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew\Tests\Unit;
 
-use DamienDart\Kew\Clocks\FrozenClock;
-use DamienDart\Kew\Clocks\SystemClock;
-use DamienDart\Kew\Events\AbstractEvent;
-use DamienDart\Kew\Events\JobKilledEvent;
-use DamienDart\Kew\Exceptions\JobAlreadyRescheduledException;
-use DamienDart\Kew\Exceptions\RetryingKilledJobException;
+use DamienDart\Kew\AbstractEvent;
+use DamienDart\Kew\FrozenClock;
 use DamienDart\Kew\Job;
+use DamienDart\Kew\JobAlreadyRescheduledException;
+use DamienDart\Kew\JobKilledEvent;
 use DamienDart\Kew\Queue;
+use DamienDart\Kew\RetryingKilledJobException;
+use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\UsesClass;

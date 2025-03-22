@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-namespace DamienDart\Kew\Events;
+namespace DamienDart\Kew;
 
 use Psr\EventDispatcher\StoppableEventInterface;
 

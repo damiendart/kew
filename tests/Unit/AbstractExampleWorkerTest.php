@@ -11,9 +11,9 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit;
 
 use DamienDart\Kew\AbstractExampleWorker;
-use DamienDart\Kew\Clocks\SystemClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\Queue;
+use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
