@@ -15,6 +15,9 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 use Ramsey\Uuid\UuidInterface;
 
+/**
+ * @psalm-api
+ */
 class Queue
 {
     private \PDO $sqliteDatabase;

@@ -12,6 +12,9 @@ namespace DamienDart\Kew;
 
 use Ramsey\Uuid\UuidInterface;
 
+/**
+ * @psalm-api
+ */
 class JobNotFoundException extends \Exception
 {
     public function __construct(
