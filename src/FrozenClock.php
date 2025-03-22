@@ -12,7 +12,11 @@ namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
 
-/** @psalm-api */
+/**
+ * @internal
+ *
+ * @psalm-api
+ */
 class FrozenClock implements ClockInterface
 {
     public function __construct(
