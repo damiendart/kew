@@ -48,10 +48,13 @@ class Queue
     }
 
     /**
-     * Creates a job on the queue. The number of times a job is retried
-     * in inferred from the number of retry intervals provided. The
-     * `availableAt` parameter is stored as UTC and future time zone
-     * rule changes are not handled.
+     * Creates a job on the queue.
+     *
+     * -    Job arguments must be JSON serializable.
+     * -    The `availableAt` parameter is stored as UTC and future time
+     *      zone rule changes are not handled.
+     * -    The number of times a job is retried in inferred from the
+     *      number of retry intervals provided.
      *
      * @psalm-api
      *
@@ -79,6 +82,15 @@ class Queue
             }
         }
 
+        try {
+            $payload = json_encode(
+                compact('arguments', 'type'),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+            );
+        } catch (\JsonException $e) {
+            throw new \InvalidArgumentException('Unable to JSON encode job payload.', previous: $e);
+        }
+
         $createdAt = $this->clock->now();
         $uuid = $this->uuidFactory->uuid7();
 
@@ -90,7 +102,7 @@ class Queue
         $statement->bindValue(':available_at', $this->formatTimestamp($availableAt ?? $createdAt));
         $statement->bindValue(':created_at', $this->formatTimestamp($createdAt));
         $statement->bindValue(':id', $uuid);
-        $statement->bindValue(':payload', json_encode(['arguments' => $arguments, 'type' => $type]));
+        $statement->bindValue(':payload', $payload);
         $statement->bindValue(':retry_intervals', json_encode($retryIntervals));
 
         $statement->execute();
