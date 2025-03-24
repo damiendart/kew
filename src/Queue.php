@@ -53,8 +53,8 @@ class Queue
      * -    Job arguments must be JSON serializable.
      * -    The `availableAt` parameter is stored as UTC and future time
      *      zone rule changes are not handled.
-     * -    The number of times a job is retried in inferred from the
-     *      number of retry intervals provided.
+     * -    The number of times a job can be retried in inferred from
+     *      the number of retry intervals provided.
      *
      * @psalm-api
      *
