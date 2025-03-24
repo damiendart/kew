@@ -15,11 +15,11 @@ use Ramsey\Uuid\UuidInterface;
 /**
  * @psalm-api
  */
-class RetryingKilledJobException extends \Exception
+class FailingKilledJobException extends \Exception
 {
     public function __construct(
         readonly public UuidInterface $jobId,
     ) {
-        parent::__construct("Job {$this->jobId->toString()} is killed and cannot be retried.");
+        parent::__construct("Job {$this->jobId->toString()} is dead and cannot be retried.");
     }
 }

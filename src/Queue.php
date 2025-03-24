@@ -164,9 +164,9 @@ class Queue
     /**
      * @throws JobAlreadyRescheduledException
      * @throws JobNotFoundException
-     * @throws RetryingKilledJobException
+     * @throws FailingKilledJobException
      */
-    public function retryJob(UuidInterface $jobId): void
+    public function failJob(UuidInterface $jobId): void
     {
         $selectStatement = $this->sqliteDatabase->prepare(
             'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
@@ -183,7 +183,7 @@ class Queue
         }
 
         if (null === $results[0]['available_at']) {
-            throw new RetryingKilledJobException($jobId);
+            throw new FailingKilledJobException($jobId);
         }
 
         if (null === $results[0]['reserved_at']) {

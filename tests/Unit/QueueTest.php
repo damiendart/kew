@@ -11,12 +11,12 @@ declare(strict_types=1);
 namespace DamienDart\Kew\Tests\Unit;
 
 use DamienDart\Kew\AbstractEvent;
+use DamienDart\Kew\FailingKilledJobException;
 use DamienDart\Kew\FrozenClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\JobAlreadyRescheduledException;
 use DamienDart\Kew\JobKilledEvent;
 use DamienDart\Kew\Queue;
-use DamienDart\Kew\RetryingKilledJobException;
 use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -29,11 +29,11 @@ use Ramsey\Uuid\UuidFactory;
  * @internal
  */
 #[CoversClass(Queue::class)]
+#[UsesClass(FailingKilledJobException::class)]
 #[UsesClass(FrozenClock::class)]
 #[UsesClass(Job::class)]
 #[UsesClass(JobAlreadyRescheduledException::class)]
 #[UsesClass(JobKilledEvent::class)]
-#[UsesClass(RetryingKilledJobException::class)]
 #[UsesClass(SystemClock::class)]
 class QueueTest extends TestCase
 {
@@ -88,7 +88,7 @@ class QueueTest extends TestCase
         );
 
         $job = $queue->getNextJob();
-        $queue->retryJob($job->id);
+        $queue->failJob($job->id);
         $this->assertNull($queue->getNextJob());
 
         $clock->setTo($clock->now()->modify('+1 minute'));
@@ -96,7 +96,7 @@ class QueueTest extends TestCase
         $this->assertInstanceOf(Job::class, $job);
         $this->assertEquals($jobId->toString(), $job->id->toString());
 
-        $queue->retryJob($job->id);
+        $queue->failJob($job->id);
         $clock->setTo($clock->now()->modify('+1 minute'));
         $this->assertNull($queue->getNextJob());
 
@@ -122,13 +122,13 @@ class QueueTest extends TestCase
 
         $this->expectException(JobAlreadyRescheduledException::class);
 
-        $queue->retryJob($jobId);
-        $queue->retryJob($jobId);
+        $queue->failJob($jobId);
+        $queue->failJob($jobId);
     }
 
     public function test_cannot_retry_a_killed_job(): void
     {
-        $this->expectException(RetryingKilledJobException::class);
+        $this->expectException(FailingKilledJobException::class);
 
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
@@ -136,11 +136,11 @@ class QueueTest extends TestCase
 
         $job = $queue->getNextJob();
 
-        $queue->retryJob($job->id);
-        $queue->retryJob($job->id);
+        $queue->failJob($job->id);
+        $queue->failJob($job->id);
     }
 
-    public function test_provides_a_notification_when_a_job_has_exhausted_its_retries(): void
+    public function test_provides_an_event_when_a_job_is_killed(): void
     {
         $eventDispatcher = new class () implements EventDispatcherInterface {
             /** @var AbstractEvent[] */
@@ -164,7 +164,7 @@ class QueueTest extends TestCase
         $jobId = $queue->createJob('test', null);
         $job = $queue->getNextJob();
 
-        $queue->retryJob($job->id);
+        $queue->failJob($job->id);
 
         $latestEvent = array_pop($eventDispatcher->events);
 
