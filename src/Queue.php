@@ -112,43 +112,55 @@ class Queue
 
     public function getNextJob(): ?Job
     {
-        $now = $this->clock->now();
-        $selectStatement = $this->sqliteDatabase->prepare(
-            'SELECT id, payload FROM jobs
-                WHERE reserved_at IS NULL
-                    AND available_at IS NOT NULL
-                    AND available_at <= :available_at
-                LIMIT 1',
-        );
+        $this->sqliteDatabase->exec('BEGIN IMMEDIATE');
 
-        $selectStatement->bindValue(':available_at', $this->formatTimestamp($now));
-        $selectStatement->execute();
+        try {
+            $now = $this->clock->now();
+            $selectStatement = $this->sqliteDatabase->prepare(
+                'SELECT id, payload FROM jobs
+                    WHERE reserved_at IS NULL
+                        AND available_at IS NOT NULL
+                        AND available_at <= :available_at
+                    LIMIT 1',
+            );
 
-        /** @var array{ 'id': string, 'payload': string }[] $results */
-        $results = $selectStatement->fetchAll();
+            $selectStatement->bindValue(':available_at', $this->formatTimestamp($now));
+            $selectStatement->execute();
 
-        if (0 === \count($results)) {
-            return null;
+            /** @var array{ 'id': string, 'payload': string }[] $results */
+            $results = $selectStatement->fetchAll();
+
+            if (0 === \count($results)) {
+                $this->sqliteDatabase->exec('COMMIT');
+
+                return null;
+            }
+
+            /** @var array{ 'arguments': mixed, 'type': non-empty-string } $data */
+            $data = json_decode($results[0]['payload'], true);
+
+            $job = new Job(
+                $this->uuidFactory->fromString($results[0]['id']),
+                $data['type'],
+                $data['arguments'],
+            );
+
+            $updateStatement = $this->sqliteDatabase->prepare(
+                'UPDATE jobs
+                    SET attempts = attempts + 1, reserved_at = :reserved_at
+                    WHERE id = :id',
+            );
+
+            $updateStatement->bindValue(':id', $job->id->toString());
+            $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
+            $updateStatement->execute();
+        } catch (\Throwable $e) {
+            $this->sqliteDatabase->exec('ROLLBACK');
+
+            throw $e;
         }
 
-        /** @var array{ 'arguments': mixed, 'type': non-empty-string } $data */
-        $data = json_decode($results[0]['payload'], true);
-
-        $job = new Job(
-            $this->uuidFactory->fromString($results[0]['id']),
-            $data['type'],
-            $data['arguments'],
-        );
-
-        $updateStatement = $this->sqliteDatabase->prepare(
-            'UPDATE jobs
-                SET attempts = attempts + 1, reserved_at = :reserved_at
-                WHERE id = :id',
-        );
-
-        $updateStatement->bindValue(':id', $job->id->toString());
-        $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
-        $updateStatement->execute();
+        $this->sqliteDatabase->exec('COMMIT');
 
         return $job;
     }
@@ -168,55 +180,70 @@ class Queue
      */
     public function failJob(UuidInterface $jobId): void
     {
-        $selectStatement = $this->sqliteDatabase->prepare(
-            'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
-        );
+        $this->sqliteDatabase->exec('BEGIN IMMEDIATE');
 
-        $selectStatement->bindValue(':id', $jobId->toString());
-        $selectStatement->execute();
+        try {
+            $selectStatement = $this->sqliteDatabase->prepare(
+                'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
+            );
 
-        /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
-        $results = $selectStatement->fetchAll();
+            $selectStatement->bindValue(':id', $jobId->toString());
+            $selectStatement->execute();
 
-        if (0 === \count($results)) {
-            throw new JobNotFoundException($jobId);
+            /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
+            $results = $selectStatement->fetchAll();
+
+            if (0 === \count($results)) {
+                throw new JobNotFoundException($jobId);
+            }
+
+            if (null === $results[0]['available_at']) {
+                throw new FailingKilledJobException($jobId);
+            }
+
+            if (null === $results[0]['reserved_at']) {
+                throw new JobAlreadyRescheduledException($jobId);
+            }
+
+            /** @var non-negative-int[] $intervals */
+            $intervals = json_decode(
+                $results[0]['retry_intervals'],
+                true,
+                flags: JSON_THROW_ON_ERROR,
+            );
+
+            if ($results[0]['attempts'] > \count($intervals)) {
+                $this->killJob($jobId);
+                $this->sqliteDatabase->exec('COMMIT');
+
+                return;
+            }
+
+            $interval = $intervals[$results[0]['attempts'] - 1];
+
+            $updateStatement = $this->sqliteDatabase->prepare(
+                'UPDATE jobs
+                    SET available_at = :available_at, reserved_at = NULL
+                    WHERE id = :id',
+            );
+
+            $updateStatement->bindValue(
+                ':available_at',
+                $this->formatTimestamp(
+                    $this->clock
+                        ->now()
+                        ->add(new \DateInterval("PT{$interval}S")),
+                ),
+            );
+            $updateStatement->bindValue(':id', $jobId->toString());
+            $updateStatement->execute();
+        } catch (\Throwable $e) {
+            $this->sqliteDatabase->exec('ROLLBACK');
+
+            throw $e;
         }
 
-        if (null === $results[0]['available_at']) {
-            throw new FailingKilledJobException($jobId);
-        }
-
-        if (null === $results[0]['reserved_at']) {
-            throw new JobAlreadyRescheduledException($jobId);
-        }
-
-        /** @var non-negative-int[] $intervals */
-        $intervals = json_decode($results[0]['retry_intervals'], true);
-
-        if ($results[0]['attempts'] > \count($intervals)) {
-            $this->killJob($jobId);
-
-            return;
-        }
-
-        $interval = $intervals[$results[0]['attempts'] - 1];
-
-        $updateStatement = $this->sqliteDatabase->prepare(
-            'UPDATE jobs
-                SET available_at = :available_at, reserved_at = NULL
-                WHERE id = :id',
-        );
-
-        $updateStatement->bindValue(
-            ':available_at',
-            $this->formatTimestamp(
-                $this->clock
-                    ->now()
-                    ->add(new \DateInterval("PT{$interval}S")),
-            ),
-        );
-        $updateStatement->bindValue(':id', $jobId->toString());
-        $updateStatement->execute();
+        $this->sqliteDatabase->exec('COMMIT');
     }
 
     /**
