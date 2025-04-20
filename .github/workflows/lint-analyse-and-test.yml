@@ -17,7 +17,7 @@ jobs:
     env:
       COMPOSER_ADDITIONAL_FLAGS: '--${{ matrix.stability }}'
     name: 'Lint, analyse, and test project (PHP ${{ matrix.php.php-version }}, ${{ matrix.stability }})'
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-24.04'
     steps:
       - name: 'Check out repository'
         uses: 'actions/checkout@v4'
