@@ -42,8 +42,8 @@ class QueueTest extends TestCase
         $clock = new FrozenClock(new \DateTimeImmutable());
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
-        $jobId = $queue->createJob(
-            'test',
+        $queue->createJob(
+            __METHOD__,
             null,
             $clock->now()->modify('+5 minutes'),
         );
@@ -52,7 +52,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+5 minutes'));
         $job = $queue->getNextJob();
-        $this->assertEquals($jobId->toString(), $job->id->toString());
+        $this->assertEquals(__METHOD__, $job->type);
     }
 
     #[TestDox('Can schedule jobs using non-UTC timestamps')]
@@ -61,17 +61,15 @@ class QueueTest extends TestCase
         $clock = new FrozenClock(new \DateTimeImmutable('2024-07-17T12:00:00+00:00'));
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
-        $jobId = $queue->createJob(
-            'test',
+        $queue->createJob(
+            __METHOD__,
             null,
             new \DateTimeImmutable('2024-07-17T14:05:00+02:00'),
         );
 
         $clock->setTo($clock->now()->modify('+5 minutes'));
         $job = $queue->getNextJob();
-
-        $this->assertInstanceOf(Job::class, $job);
-        $this->assertEquals($jobId->toString(), $job->id->toString());
+        $this->assertEquals(__METHOD__, $job->type);
     }
 
     public function test_honours_retry_intervals_when_a_job_is_retried(): void
@@ -79,13 +77,7 @@ class QueueTest extends TestCase
         $clock = new FrozenClock(new \DateTimeImmutable());
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
-        $jobId = $queue->createJob(
-            'test',
-            null,
-            null,
-            60,
-            120,
-        );
+        $queue->createJob(__METHOD__, null, null, 60, 120);
 
         $job = $queue->getNextJob();
         $queue->failJob($job->id);
@@ -93,8 +85,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
-        $this->assertInstanceOf(Job::class, $job);
-        $this->assertEquals($jobId->toString(), $job->id->toString());
+        $this->assertEquals(__METHOD__, $job->type);
 
         $queue->failJob($job->id);
         $clock->setTo($clock->now()->modify('+1 minute'));
@@ -102,8 +93,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
-        $this->assertInstanceOf(Job::class, $job);
-        $this->assertEquals($jobId->toString(), $job->id->toString());
+        $this->assertEquals(__METHOD__, $job->type);
     }
 
     public function test_cannot_create_a_job_with_negative_retry_intervals(): void
@@ -118,25 +108,26 @@ class QueueTest extends TestCase
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $jobId = $queue->createJob('test', null, null, 2, 5);
+        $queue->createJob('test', null, null, 2, 5);
+
+        $job = $queue->getNextJob();
+        $queue->failJob($job->id);
 
         $this->expectException(JobAlreadyRescheduledException::class);
-
-        $queue->failJob($jobId);
-        $queue->failJob($jobId);
+        $queue->failJob($job->id);
     }
 
     public function test_cannot_retry_a_killed_job(): void
     {
-        $this->expectException(FailingKilledJobException::class);
 
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
         $queue->createJob('test', null);
 
         $job = $queue->getNextJob();
-
         $queue->failJob($job->id);
+
+        $this->expectException(FailingKilledJobException::class);
         $queue->failJob($job->id);
     }
 
@@ -161,14 +152,14 @@ class QueueTest extends TestCase
             $eventDispatcher,
         );
 
-        $jobId = $queue->createJob('test', null);
-        $job = $queue->getNextJob();
+        $queue->createJob(__METHOD__, null);
 
+        $job = $queue->getNextJob();
         $queue->failJob($job->id);
 
         $latestEvent = array_pop($eventDispatcher->events);
 
         $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
-        $this->assertEquals($latestEvent->jobId->toString(), $jobId->toString());
+        $this->assertEquals($latestEvent->jobId->toString(), $job->id->toString());
     }
 }

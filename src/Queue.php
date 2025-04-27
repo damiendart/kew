@@ -69,7 +69,7 @@ class Queue
         mixed $arguments,
         ?\DateTimeInterface $availableAt = null,
         int ...$retryIntervals,
-    ): UuidInterface {
+    ): void {
         // @phpstan-ignore-next-line identical.alwaysFalse
         if ('' === $type) {
             throw new \InvalidArgumentException('A job type cannot be an empty string.');
@@ -106,8 +106,6 @@ class Queue
         $statement->bindValue(':retry_intervals', json_encode($retryIntervals));
 
         $statement->execute();
-
-        return $uuid;
     }
 
     public function getNextJob(): ?Job
