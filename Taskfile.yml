@@ -92,5 +92,5 @@ tasks:
 
   test:php:
     cmds:
-      - 'vendor/bin/phpunit --testdox'
+      - 'vendor/bin/phpunit --order-by=random --testdox'
     desc: 'Run PHP tests with PHPUnit'
