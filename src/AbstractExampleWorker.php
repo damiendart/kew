@@ -15,13 +15,6 @@ namespace DamienDart\Kew;
  */
 abstract class AbstractExampleWorker
 {
-    abstract protected function handleJob(Job $job): void;
-
-    abstract protected function handleFailedJob(
-        Job $job,
-        \Throwable $throwable,
-    ): void;
-
     public function __construct(protected Queue $queue) {}
 
     public function processJobs(): void
@@ -47,4 +40,11 @@ abstract class AbstractExampleWorker
     {
         return true;
     }
+
+    abstract protected function handleJob(Job $job): void;
+
+    abstract protected function handleFailedJob(
+        Job $job,
+        \Throwable $throwable,
+    ): void;
 }
