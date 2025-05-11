@@ -28,9 +28,9 @@ abstract class AbstractExampleWorker
 
             try {
                 $this->handleJob($job);
-                $this->queue->acknowledgeJob($job->id);
+                $this->queue->acknowledgeJob($job);
             } catch (\Throwable $e) {
-                $this->queue->failJob($job->id);
+                $this->queue->failJob($job);
                 $this->handleFailedJob($job, $e);
             }
         }

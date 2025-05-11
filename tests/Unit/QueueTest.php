@@ -80,14 +80,14 @@ class QueueTest extends TestCase
         $queue->createJob(__METHOD__, null, null, 60, 120);
 
         $job = $queue->getNextJob();
-        $queue->failJob($job->id);
+        $queue->failJob($job);
         $this->assertNull($queue->getNextJob());
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
         $this->assertEquals(__METHOD__, $job->type);
 
-        $queue->failJob($job->id);
+        $queue->failJob($job);
         $clock->setTo($clock->now()->modify('+1 minute'));
         $this->assertNull($queue->getNextJob());
 
@@ -111,10 +111,10 @@ class QueueTest extends TestCase
         $queue->createJob('test', null, null, 2, 5);
 
         $job = $queue->getNextJob();
-        $queue->failJob($job->id);
+        $queue->failJob($job);
 
         $this->expectException(JobAlreadyRescheduledException::class);
-        $queue->failJob($job->id);
+        $queue->failJob($job);
     }
 
     public function test_cannot_retry_a_killed_job(): void
@@ -125,10 +125,10 @@ class QueueTest extends TestCase
         $queue->createJob('test', null);
 
         $job = $queue->getNextJob();
-        $queue->failJob($job->id);
+        $queue->failJob($job);
 
         $this->expectException(FailingKilledJobException::class);
-        $queue->failJob($job->id);
+        $queue->failJob($job);
     }
 
     public function test_provides_an_event_when_a_job_is_killed(): void
@@ -155,7 +155,7 @@ class QueueTest extends TestCase
         $queue->createJob(__METHOD__, null);
 
         $job = $queue->getNextJob();
-        $queue->failJob($job->id);
+        $queue->failJob($job);
 
         $latestEvent = array_pop($eventDispatcher->events);
 

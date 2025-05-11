@@ -13,7 +13,6 @@ namespace DamienDart\Kew;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
-use Ramsey\Uuid\UuidInterface;
 
 /**
  * @psalm-api
@@ -166,9 +165,9 @@ class Queue
     /**
      * @throws JobNotFoundException
      */
-    public function acknowledgeJob(UuidInterface $jobId): void
+    public function acknowledgeJob(Job $job): void
     {
-        $this->deleteJob($jobId);
+        $this->deleteJob($job);
     }
 
     /**
@@ -176,7 +175,7 @@ class Queue
      * @throws JobNotFoundException
      * @throws FailingKilledJobException
      */
-    public function failJob(UuidInterface $jobId): void
+    public function failJob(Job $job): void
     {
         $this->sqliteDatabase->exec('BEGIN IMMEDIATE');
 
@@ -185,22 +184,22 @@ class Queue
                 'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
             );
 
-            $selectStatement->bindValue(':id', $jobId->toString());
+            $selectStatement->bindValue(':id', $job->id->toString());
             $selectStatement->execute();
 
             /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
             $results = $selectStatement->fetchAll();
 
             if (0 === \count($results)) {
-                throw new JobNotFoundException($jobId);
+                throw new JobNotFoundException($job->id);
             }
 
             if (null === $results[0]['available_at']) {
-                throw new FailingKilledJobException($jobId);
+                throw new FailingKilledJobException($job->id);
             }
 
             if (null === $results[0]['reserved_at']) {
-                throw new JobAlreadyRescheduledException($jobId);
+                throw new JobAlreadyRescheduledException($job->id);
             }
 
             /** @var non-negative-int[] $intervals */
@@ -211,7 +210,7 @@ class Queue
             );
 
             if ($results[0]['attempts'] > \count($intervals)) {
-                $this->killJob($jobId);
+                $this->killJob($job);
                 $this->sqliteDatabase->exec('COMMIT');
 
                 return;
@@ -233,7 +232,7 @@ class Queue
                         ->add(new \DateInterval("PT{$interval}S")),
                 ),
             );
-            $updateStatement->bindValue(':id', $jobId->toString());
+            $updateStatement->bindValue(':id', $job->id->toString());
             $updateStatement->execute();
         } catch (\Throwable $e) {
             $this->sqliteDatabase->exec('ROLLBACK');
@@ -247,19 +246,19 @@ class Queue
     /**
      * @throws JobNotFoundException
      */
-    private function deleteJob(UuidInterface $jobId): void
+    private function deleteJob(Job $job): void
     {
         $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
 
-        $statement->bindValue(':id', $jobId->toString());
+        $statement->bindValue(':id', $job->id->toString());
         $statement->execute();
 
         if (0 === $statement->rowCount()) {
-            throw new JobNotFoundException($jobId);
+            throw new JobNotFoundException($job->id);
         }
     }
 
-    private function killJob(UuidInterface $jobId): void
+    private function killJob(Job $job): void
     {
         $statement = $this->sqliteDatabase->prepare(
             'UPDATE jobs
@@ -267,10 +266,10 @@ class Queue
                 WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $jobId->toString());
+        $statement->bindValue(':id', $job->id->toString());
         $statement->execute();
 
-        $this->eventDispatcher?->dispatch(new JobKilledEvent($jobId));
+        $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
     }
 
     private function formatTimestamp(\DateTimeInterface $date): string
