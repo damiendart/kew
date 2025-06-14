@@ -24,6 +24,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
+use Random\Randomizer;
 
 /**
  * @internal
@@ -41,9 +42,10 @@ class QueueTest extends TestCase
     {
         $clock = new FrozenClock(new \DateTimeImmutable());
         $queue = new Queue(':memory:', $clock, new UuidFactory());
+        $scheduledJobType = $this->getRandomString(8);
 
         $queue->createJob(
-            __METHOD__,
+            $scheduledJobType,
             null,
             $clock->now()->modify('+5 minutes'),
         );
@@ -52,7 +54,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+5 minutes'));
         $job = $queue->getNextJob();
-        $this->assertEquals(__METHOD__, $job->type);
+        $this->assertEquals($scheduledJobType, $job->type);
     }
 
     #[TestDox('Can schedule jobs using non-UTC timestamps')]
@@ -60,24 +62,26 @@ class QueueTest extends TestCase
     {
         $clock = new FrozenClock(new \DateTimeImmutable('2024-07-17T12:00:00+00:00'));
         $queue = new Queue(':memory:', $clock, new UuidFactory());
+        $scheduledJobType = $this->getRandomString(8);
 
         $queue->createJob(
-            __METHOD__,
+            $scheduledJobType,
             null,
             new \DateTimeImmutable('2024-07-17T14:05:00+02:00'),
         );
 
         $clock->setTo($clock->now()->modify('+5 minutes'));
         $job = $queue->getNextJob();
-        $this->assertEquals(__METHOD__, $job->type);
+        $this->assertEquals($scheduledJobType, $job->type);
     }
 
     public function test_honours_retry_intervals_when_a_job_is_retried(): void
     {
         $clock = new FrozenClock(new \DateTimeImmutable());
+        $retryableJobType = $this->getRandomString(8);
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
-        $queue->createJob(__METHOD__, null, null, 60, 120);
+        $queue->createJob($retryableJobType, null, null, 60, 120);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -85,7 +89,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
-        $this->assertEquals(__METHOD__, $job->type);
+        $this->assertEquals($retryableJobType, $job->type);
 
         $queue->failJob($job);
         $clock->setTo($clock->now()->modify('+1 minute'));
@@ -93,7 +97,7 @@ class QueueTest extends TestCase
 
         $clock->setTo($clock->now()->modify('+1 minute'));
         $job = $queue->getNextJob();
-        $this->assertEquals(__METHOD__, $job->type);
+        $this->assertEquals($retryableJobType, $job->type);
     }
 
     public function test_cannot_create_a_job_with_negative_retry_intervals(): void
@@ -101,14 +105,14 @@ class QueueTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         (new Queue(':memory:', new SystemClock(), new UuidFactory()))
-            ->createJob('test', null, null, -20);
+            ->createJob($this->getRandomString(8), null, null, -20);
     }
 
     public function test_cannot_retry_a_job_that_is_already_rescheduled(): void
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $queue->createJob('test', null, null, 2, 5);
+        $queue->createJob($this->getRandomString(8), null, null, 2, 5);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -119,10 +123,9 @@ class QueueTest extends TestCase
 
     public function test_cannot_retry_a_killed_job(): void
     {
-
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $queue->createJob('test', null);
+        $queue->createJob($this->getRandomString(8), null);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -152,7 +155,7 @@ class QueueTest extends TestCase
             $eventDispatcher,
         );
 
-        $queue->createJob(__METHOD__, null);
+        $queue->createJob($this->getRandomString(8), null);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -161,5 +164,10 @@ class QueueTest extends TestCase
 
         $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
         $this->assertEquals($latestEvent->jobId->toString(), $job->id->toString());
+    }
+
+    private function getRandomString(int $length): string
+    {
+        return bin2hex((new Randomizer())->getBytes($length));
     }
 }
