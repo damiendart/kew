@@ -49,19 +49,20 @@ class Queue
     /**
      * Creates a job on the queue.
      *
-     * -    Job arguments must be JSON serializable.
-     * -    The `availableAt` parameter is stored as UTC and future time
-     *      zone rule changes are not handled.
-     * -    The number of times a job can be retried in inferred from
-     *      the number of retry intervals provided.
+     * The `availableAt` parameter is stored as UTC, and future time
+     * zone rule changes are not handled. The number of times a job
+     * can be retried is inferred from the number of retry intervals
+     * provided.
      *
      * @psalm-api
      *
      * @psalm-suppress TypeDoesNotContainType
      * @psalm-suppress DocblockTypeContradiction
      *
-     * @param non-empty-string $type
-     * @param non-negative-int ...$retryIntervals Retry intervals, given in seconds, between job attempts
+     * @param non-empty-string $type An identifier used by workers to decide how to execute the job
+     * @param mixed $arguments JSON-serialisable arguments used by workers when executing the job
+     * @param ?\DateTimeInterface $availableAt The date and time when a job can be released for execution
+     * @param non-negative-int ...$retryIntervals Retry intervals, in seconds, between job attempts
      */
     public function createJob(
         string $type,
