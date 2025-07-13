@@ -138,7 +138,7 @@ class Queue
             $data = json_decode($results[0]['payload'], true);
 
             $job = new Job(
-                $this->uuidFactory->fromString($results[0]['id']),
+                $results[0]['id'],
                 $data['type'],
                 $data['arguments'],
             );
@@ -149,7 +149,7 @@ class Queue
                     WHERE id = :id',
             );
 
-            $updateStatement->bindValue(':id', $job->id->toString());
+            $updateStatement->bindValue(':id', $job->id);
             $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
             $updateStatement->execute();
         } catch (\Throwable $e) {
@@ -185,7 +185,7 @@ class Queue
                 'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
             );
 
-            $selectStatement->bindValue(':id', $job->id->toString());
+            $selectStatement->bindValue(':id', $job->id);
             $selectStatement->execute();
 
             /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
@@ -233,7 +233,7 @@ class Queue
                         ->add(new \DateInterval("PT{$interval}S")),
                 ),
             );
-            $updateStatement->bindValue(':id', $job->id->toString());
+            $updateStatement->bindValue(':id', $job->id);
             $updateStatement->execute();
         } catch (\Throwable $e) {
             $this->sqliteDatabase->exec('ROLLBACK');
@@ -251,7 +251,7 @@ class Queue
     {
         $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
 
-        $statement->bindValue(':id', $job->id->toString());
+        $statement->bindValue(':id', $job->id);
         $statement->execute();
 
         if (0 === $statement->rowCount()) {
@@ -267,7 +267,7 @@ class Queue
                 WHERE id = :id',
         );
 
-        $statement->bindValue(':id', $job->id->toString());
+        $statement->bindValue(':id', $job->id);
         $statement->execute();
 
         $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));

@@ -163,7 +163,7 @@ class QueueTest extends TestCase
         $latestEvent = array_pop($eventDispatcher->events);
 
         $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
-        $this->assertEquals($latestEvent->jobId->toString(), $job->id->toString());
+        $this->assertEquals($latestEvent->jobId, $job->id);
     }
 
     private function getRandomString(int $length): string

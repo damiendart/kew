@@ -10,15 +10,13 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
-use Ramsey\Uuid\UuidInterface;
-
 /**
  * @psalm-api
  */
 readonly class Job
 {
     public function __construct(
-        public UuidInterface $id,
+        public string $id,
         public string $type,
         public mixed $arguments,
     ) {}

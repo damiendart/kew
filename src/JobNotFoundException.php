@@ -10,16 +10,14 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
-use Ramsey\Uuid\UuidInterface;
-
 /**
  * @psalm-api
  */
 class JobNotFoundException extends \Exception
 {
     public function __construct(
-        public readonly UuidInterface $jobId,
+        public readonly string $jobId,
     ) {
-        parent::__construct("Job {$this->jobId->toString()} cannot be found.");
+        parent::__construct("Job {$this->jobId} cannot be found.");
     }
 }

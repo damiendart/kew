@@ -10,16 +10,14 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew;
 
-use Ramsey\Uuid\UuidInterface;
-
 /**
  * @psalm-api
  */
 class JobAlreadyRescheduledException extends \Exception
 {
     public function __construct(
-        public readonly UuidInterface $jobId,
+        public readonly string $jobId,
     ) {
-        parent::__construct("Job {$this->jobId->toString()} has already been rescheduled.");
+        parent::__construct("Job {$this->jobId} has already been rescheduled.");
     }
 }
