@@ -31,11 +31,11 @@
     "ramsey/uuid": "^4.7.6"
   },
   "require-dev": {
-    "friendsofphp/php-cs-fixer": "^3.73.1",
-    "phpstan/phpstan": "^2.1.8",
+    "friendsofphp/php-cs-fixer": "^3.82.2",
+    "phpstan/phpstan": "^2.1.17",
     "phpstan/phpstan-strict-rules": "^2.0.4",
-    "phpunit/phpunit": "^11.5.14",
-    "psalm/phar": "^6.9.4"
+    "phpunit/phpunit": "^11.5.27",
+    "psalm/phar": "^6.12.1"
   },
   "type": "library"
 }

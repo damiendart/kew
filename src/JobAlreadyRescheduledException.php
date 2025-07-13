@@ -18,7 +18,7 @@ use Ramsey\Uuid\UuidInterface;
 class JobAlreadyRescheduledException extends \Exception
 {
     public function __construct(
-        readonly public UuidInterface $jobId,
+        public readonly UuidInterface $jobId,
     ) {
         parent::__construct("Job {$this->jobId->toString()} has already been rescheduled.");
     }

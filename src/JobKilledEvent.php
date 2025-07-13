@@ -17,5 +17,5 @@ use Ramsey\Uuid\UuidInterface;
  */
 final class JobKilledEvent extends AbstractEvent
 {
-    public function __construct(readonly public UuidInterface $jobId) {}
+    public function __construct(public readonly UuidInterface $jobId) {}
 }
