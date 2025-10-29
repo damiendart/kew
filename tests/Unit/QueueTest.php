@@ -10,19 +10,16 @@ declare(strict_types=1);
 
 namespace DamienDart\Kew\Tests\Unit;
 
-use DamienDart\Kew\AbstractEvent;
 use DamienDart\Kew\FailingKilledJobException;
 use DamienDart\Kew\FrozenClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\JobAlreadyRescheduledException;
-use DamienDart\Kew\JobKilledEvent;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 use Random\Randomizer;
 
@@ -34,7 +31,6 @@ use Random\Randomizer;
 #[UsesClass(FrozenClock::class)]
 #[UsesClass(Job::class)]
 #[UsesClass(JobAlreadyRescheduledException::class)]
-#[UsesClass(JobKilledEvent::class)]
 #[UsesClass(SystemClock::class)]
 class QueueTest extends TestCase
 {
@@ -132,38 +128,6 @@ class QueueTest extends TestCase
 
         $this->expectException(FailingKilledJobException::class);
         $queue->failJob($job);
-    }
-
-    public function test_provides_an_event_when_a_job_is_killed(): void
-    {
-        $eventDispatcher = new class () implements EventDispatcherInterface {
-            /** @var AbstractEvent[] */
-            public array $events = [];
-
-            public function dispatch(object $event): object
-            {
-                $this->events[] = $event;
-
-                return $event;
-            }
-        };
-
-        $queue = new Queue(
-            ':memory:',
-            new SystemClock(),
-            new UuidFactory(),
-            $eventDispatcher,
-        );
-
-        $queue->createJob($this->getRandomString(8), null);
-
-        $job = $queue->getNextJob();
-        $queue->failJob($job);
-
-        $latestEvent = array_pop($eventDispatcher->events);
-
-        $this->assertInstanceOf(JobKilledEvent::class, $latestEvent);
-        $this->assertEquals($latestEvent->jobId, $job->id);
     }
 
     private function getRandomString(int $length): string
