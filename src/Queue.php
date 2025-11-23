@@ -30,7 +30,9 @@ class Queue
     ) {
         $this->sqliteDatabase = new \PDO("sqlite:{$databaseFilepath}");
 
+        $this->sqliteDatabase->exec('PRAGMA busy_timeout=5000');
         $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
+        $this->sqliteDatabase->exec('PRAGMA synchronous=NORMAL');
         $this->sqliteDatabase->exec(
             'CREATE TABLE IF NOT EXISTS jobs(
                 id TEXT PRIMARY KEY UNIQUE,
