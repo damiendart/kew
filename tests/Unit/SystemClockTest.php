@@ -23,8 +23,11 @@ final class SystemClockTest extends TestCase
     public function test_returns_the_current_date_and_time(): void
     {
         $clock = new SystemClock();
+        $before = $clock->now();
 
-        $this->assertNotSame($clock->now(), $clock->now());
+        usleep(1);
+
+        $this->assertNotEquals($before, $clock->now());
     }
 
     public function test_defaults_to_current_timezone_if_not_specified(): void
