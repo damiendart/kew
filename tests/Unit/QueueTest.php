@@ -14,12 +14,14 @@ use DamienDart\Kew\FailingKilledJobException;
 use DamienDart\Kew\FrozenClock;
 use DamienDart\Kew\Job;
 use DamienDart\Kew\JobAlreadyRescheduledException;
+use DamienDart\Kew\JobKilledEvent;
 use DamienDart\Kew\Queue;
 use DamienDart\Kew\SystemClock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 use Random\Randomizer;
 
@@ -31,6 +33,7 @@ use Random\Randomizer;
 #[UsesClass(FrozenClock::class)]
 #[UsesClass(Job::class)]
 #[UsesClass(JobAlreadyRescheduledException::class)]
+#[UsesClass(JobKilledEvent::class)]
 #[UsesClass(SystemClock::class)]
 class QueueTest extends TestCase
 {
@@ -128,6 +131,33 @@ class QueueTest extends TestCase
 
         $this->expectException(FailingKilledJobException::class);
         $queue->failJob($job);
+    }
+
+    public function test_dispatches_an_event_when_a_job_is_killed(): void
+    {
+        $dispatcher = new class () implements EventDispatcherInterface {
+            public function __construct(public ?object $latestEvent = null) {}
+
+            public function dispatch(object $event): object
+            {
+                return $this->latestEvent = $event;
+            }
+        };
+
+        $queue = new Queue(
+            ':memory:',
+            new SystemClock(),
+            new UuidFactory(),
+            $dispatcher,
+        );
+
+        $queue->createJob($this->getRandomString(8), null);
+
+        $job = $queue->getNextJob();
+        $queue->failJob($job);
+
+        $this->assertInstanceOf(JobKilledEvent::class, $dispatcher->latestEvent);
+        $this->assertEquals($dispatcher->latestEvent->jobId, $job->id);
     }
 
     private function getRandomString(int $length): string

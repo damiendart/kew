@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace DamienDart\Kew;
 
 use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ramsey\Uuid\UuidFactory;
 
 /**
@@ -27,6 +28,7 @@ class Queue
         private readonly string $databaseFilepath,
         private readonly ClockInterface $clock,
         private readonly UuidFactory $uuidFactory,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
         $this->sqliteDatabase = null;
     }
@@ -278,6 +280,8 @@ class Queue
 
         $statement->bindValue(':id', $job->id);
         $statement->execute();
+
+        $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
     }
 
     private function formatTimestamp(\DateTimeInterface $date): string
