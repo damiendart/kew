@@ -20,6 +20,13 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(FrozenClock::class)]
 final class FrozenClockTest extends TestCase
 {
+    public function test_can_be_constructed_without_providing_a_date_and_time(): void
+    {
+        $clock = new FrozenClock();
+
+        $this->assertInstanceOf(\DateTimeImmutable::class, $clock->now());
+    }
+
     public function test_returns_the_initially_provided_date_and_time(): void
     {
         $now = new \DateTimeImmutable();

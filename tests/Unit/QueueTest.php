@@ -36,7 +36,7 @@ class QueueTest extends TestCase
 {
     public function test_can_schedule_jobs(): void
     {
-        $clock = new FrozenClock(new \DateTimeImmutable());
+        $clock = new FrozenClock();
         $queue = new Queue(':memory:', $clock, new UuidFactory());
         $scheduledJobType = $this->getRandomString(8);
 
@@ -73,7 +73,7 @@ class QueueTest extends TestCase
 
     public function test_honours_retry_intervals_when_a_job_is_retried(): void
     {
-        $clock = new FrozenClock(new \DateTimeImmutable());
+        $clock = new FrozenClock();
         $retryableJobType = $this->getRandomString(8);
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 

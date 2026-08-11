@@ -20,7 +20,7 @@ use Psr\Clock\ClockInterface;
 class FrozenClock implements ClockInterface
 {
     public function __construct(
-        private \DateTimeImmutable $frozenAt,
+        private \DateTimeImmutable $frozenAt = new \DateTimeImmutable(),
     ) {}
 
     public function now(): \DateTimeImmutable
