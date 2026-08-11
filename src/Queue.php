@@ -18,32 +18,17 @@ use Ramsey\Uuid\UuidFactory;
  */
 class Queue
 {
-    private \PDO $sqliteDatabase;
+    private ?\PDO $sqliteDatabase;
 
     /**
      * @psalm-api
      */
     public function __construct(
-        string $databaseFilepath,
+        private readonly string $databaseFilepath,
         private readonly ClockInterface $clock,
         private readonly UuidFactory $uuidFactory,
     ) {
-        $this->sqliteDatabase = new \PDO("sqlite:{$databaseFilepath}");
-
-        $this->sqliteDatabase->exec('PRAGMA busy_timeout=5000');
-        $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
-        $this->sqliteDatabase->exec('PRAGMA synchronous=NORMAL');
-        $this->sqliteDatabase->exec(
-            'CREATE TABLE IF NOT EXISTS jobs(
-                id TEXT PRIMARY KEY UNIQUE,
-                created_at TEXT,
-                available_at TEXT,
-                reserved_at TEXT DEFAULT NULL,
-                attempts INT DEFAULT 0,
-                retry_intervals TEXT DEFAULT NULL,
-                payload TEXT
-            )',
-        );
+        $this->sqliteDatabase = null;
     }
 
     /**
@@ -94,7 +79,7 @@ class Queue
         $createdAt = $this->clock->now();
         $uuid = $this->uuidFactory->uuid7();
 
-        $statement = $this->sqliteDatabase->prepare(
+        $statement = $this->getDatabase()->prepare(
             'INSERT INTO jobs (id, created_at, available_at, retry_intervals, payload)
                 VALUES (:id, :created_at, :available_at, :retry_intervals, :payload)',
         );
@@ -110,11 +95,11 @@ class Queue
 
     public function getNextJob(): ?Job
     {
-        $this->sqliteDatabase->exec('BEGIN IMMEDIATE');
+        $this->getDatabase()->exec('BEGIN IMMEDIATE');
 
         try {
             $now = $this->clock->now();
-            $selectStatement = $this->sqliteDatabase->prepare(
+            $selectStatement = $this->getDatabase()->prepare(
                 'SELECT id, payload FROM jobs
                     WHERE reserved_at IS NULL
                         AND available_at IS NOT NULL
@@ -129,7 +114,7 @@ class Queue
             $results = $selectStatement->fetchAll();
 
             if (0 === \count($results)) {
-                $this->sqliteDatabase->exec('COMMIT');
+                $this->getDatabase()->exec('COMMIT');
 
                 return null;
             }
@@ -143,7 +128,7 @@ class Queue
                 $data['arguments'],
             );
 
-            $updateStatement = $this->sqliteDatabase->prepare(
+            $updateStatement = $this->getDatabase()->prepare(
                 'UPDATE jobs
                     SET attempts = attempts + 1, reserved_at = :reserved_at
                     WHERE id = :id',
@@ -153,12 +138,12 @@ class Queue
             $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
             $updateStatement->execute();
         } catch (\Throwable $e) {
-            $this->sqliteDatabase->exec('ROLLBACK');
+            $this->getDatabase()->exec('ROLLBACK');
 
             throw $e;
         }
 
-        $this->sqliteDatabase->exec('COMMIT');
+        $this->getDatabase()->exec('COMMIT');
 
         return $job;
     }
@@ -178,10 +163,10 @@ class Queue
      */
     public function failJob(Job $job): void
     {
-        $this->sqliteDatabase->exec('BEGIN IMMEDIATE');
+        $this->getDatabase()->exec('BEGIN IMMEDIATE');
 
         try {
-            $selectStatement = $this->sqliteDatabase->prepare(
+            $selectStatement = $this->getDatabase()->prepare(
                 'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
             );
 
@@ -212,14 +197,14 @@ class Queue
 
             if ($results[0]['attempts'] > \count($intervals)) {
                 $this->killJob($job);
-                $this->sqliteDatabase->exec('COMMIT');
+                $this->getDatabase()->exec('COMMIT');
 
                 return;
             }
 
             $interval = $intervals[$results[0]['attempts'] - 1];
 
-            $updateStatement = $this->sqliteDatabase->prepare(
+            $updateStatement = $this->getDatabase()->prepare(
                 'UPDATE jobs
                     SET available_at = :available_at, reserved_at = NULL
                     WHERE id = :id',
@@ -236,12 +221,12 @@ class Queue
             $updateStatement->bindValue(':id', $job->id);
             $updateStatement->execute();
         } catch (\Throwable $e) {
-            $this->sqliteDatabase->exec('ROLLBACK');
+            $this->getDatabase()->exec('ROLLBACK');
 
             throw $e;
         }
 
-        $this->sqliteDatabase->exec('COMMIT');
+        $this->getDatabase()->exec('COMMIT');
     }
 
     /**
@@ -249,7 +234,7 @@ class Queue
      */
     private function deleteJob(Job $job): void
     {
-        $statement = $this->sqliteDatabase->prepare('DELETE FROM jobs WHERE id = :id');
+        $statement = $this->getDatabase()->prepare('DELETE FROM jobs WHERE id = :id');
 
         $statement->bindValue(':id', $job->id);
         $statement->execute();
@@ -259,9 +244,33 @@ class Queue
         }
     }
 
+    private function getDatabase(): \PDO
+    {
+        if (null === $this->sqliteDatabase) {
+            $this->sqliteDatabase = new \PDO('sqlite:' . $this->databaseFilepath);
+
+            $this->sqliteDatabase->exec('PRAGMA busy_timeout=5000');
+            $this->sqliteDatabase->exec('PRAGMA journal_mode=WAL');
+            $this->sqliteDatabase->exec('PRAGMA synchronous=NORMAL');
+            $this->sqliteDatabase->exec(
+                'CREATE TABLE IF NOT EXISTS jobs(
+                    id TEXT PRIMARY KEY UNIQUE,
+                    created_at TEXT,
+                    available_at TEXT,
+                    reserved_at TEXT DEFAULT NULL,
+                    attempts INT DEFAULT 0,
+                    retry_intervals TEXT DEFAULT NULL,
+                    payload TEXT
+                )',
+            );
+        }
+
+        return $this->sqliteDatabase;
+    }
+
     private function killJob(Job $job): void
     {
-        $statement = $this->sqliteDatabase->prepare(
+        $statement = $this->getDatabase()->prepare(
             'UPDATE jobs
                 SET available_at = NULL, reserved_at = NULL
                 WHERE id = :id',
