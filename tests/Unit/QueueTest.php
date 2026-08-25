@@ -74,6 +74,18 @@ class QueueTest extends TestCase
         $this->assertEquals($scheduledJobType, $job->type);
     }
 
+    public function test_removes_acknowledged_jobs(): void
+    {
+        $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
+
+        $queue->createJob($this->makeRandomString(8), null);
+
+        $job = $queue->getNextJob();
+        $queue->acknowledgeJob($job);
+
+        $this->assertNull($queue->getNextJob());
+    }
+
     public function test_honours_retry_intervals_when_a_job_is_retried(): void
     {
         $clock = new FrozenClock();
