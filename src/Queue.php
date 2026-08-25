@@ -108,7 +108,7 @@ class Queue
      * @throws JobNotFoundException
      * @throws FailingKilledJobException
      */
-    public function failJob(Job $job): void
+    public function failJob(Job $job, ?\Throwable $throwable = null): void
     {
         $this->getDatabase()->exec('BEGIN IMMEDIATE');
 
@@ -143,7 +143,7 @@ class Queue
             );
 
             if ($results[0]['attempts'] > \count($intervals)) {
-                $this->killJob($job);
+                $this->killJob($job, $throwable);
                 $this->getDatabase()->exec('COMMIT');
 
                 return;
@@ -270,7 +270,7 @@ class Queue
         return $this->sqliteDatabase;
     }
 
-    private function killJob(Job $job): void
+    private function killJob(Job $job, ?\Throwable $throwable = null): void
     {
         $statement = $this->getDatabase()->prepare(
             'UPDATE jobs
@@ -281,7 +281,7 @@ class Queue
         $statement->bindValue(':id', $job->id);
         $statement->execute();
 
-        $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
+        $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id, $throwable));
     }
 
     private function makeNormalisedTimestamp(\DateTimeInterface $date): string

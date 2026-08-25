@@ -163,13 +163,19 @@ class QueueTest extends TestCase
             $dispatcher,
         );
 
-        $queue->createJob($this->makeRandomString(8), null);
+        $queue->createJob($this->makeRandomString(8), null, null, 0);
 
         $job = $queue->getNextJob();
-        $queue->failJob($job);
+        $queue->failJob($job, new \Exception('first'));
+
+        $this->assertNull($dispatcher->latestEvent);
+
+        $job = $queue->getNextJob();
+        $queue->failJob($job, new \Exception('second'));
 
         $this->assertInstanceOf(JobKilledEvent::class, $dispatcher->latestEvent);
         $this->assertEquals($dispatcher->latestEvent->jobId, $job->id);
+        $this->assertEquals($dispatcher->latestEvent->throwable, new \Exception('second'));
     }
 
     private function makeRandomString(int $length): string

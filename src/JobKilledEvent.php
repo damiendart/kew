@@ -19,7 +19,10 @@ final class JobKilledEvent implements StoppableEventInterface
 {
     private bool $propagationStopped = false;
 
-    public function __construct(public readonly string $jobId) {}
+    public function __construct(
+        public readonly string $jobId,
+        public readonly ?\Throwable $throwable,
+    ) {}
 
     public function isPropagationStopped(): bool
     {
