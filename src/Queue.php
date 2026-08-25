@@ -34,6 +34,14 @@ class Queue
     }
 
     /**
+     * @throws JobNotFoundException
+     */
+    public function acknowledgeJob(Job $job): void
+    {
+        $this->deleteJob($job);
+    }
+
+    /**
      * Creates a job on the queue.
      *
      * The `availableAt` parameter is stored as UTC, and future time
@@ -86,76 +94,13 @@ class Queue
                 VALUES (:id, :created_at, :available_at, :retry_intervals, :payload)',
         );
 
-        $statement->bindValue(':available_at', $this->formatTimestamp($availableAt ?? $createdAt));
-        $statement->bindValue(':created_at', $this->formatTimestamp($createdAt));
+        $statement->bindValue(':available_at', $this->makeNormalisedTimestamp($availableAt ?? $createdAt));
+        $statement->bindValue(':created_at', $this->makeNormalisedTimestamp($createdAt));
         $statement->bindValue(':id', $uuid);
         $statement->bindValue(':payload', $payload);
         $statement->bindValue(':retry_intervals', json_encode($retryIntervals));
 
         $statement->execute();
-    }
-
-    public function getNextJob(): ?Job
-    {
-        $this->getDatabase()->exec('BEGIN IMMEDIATE');
-
-        try {
-            $now = $this->clock->now();
-            $selectStatement = $this->getDatabase()->prepare(
-                'SELECT id, payload FROM jobs
-                    WHERE reserved_at IS NULL
-                        AND available_at IS NOT NULL
-                        AND available_at <= :available_at
-                    LIMIT 1',
-            );
-
-            $selectStatement->bindValue(':available_at', $this->formatTimestamp($now));
-            $selectStatement->execute();
-
-            /** @var array{ 'id': string, 'payload': string }[] $results */
-            $results = $selectStatement->fetchAll();
-
-            if (0 === \count($results)) {
-                $this->getDatabase()->exec('COMMIT');
-
-                return null;
-            }
-
-            /** @var array{ 'arguments': mixed, 'type': non-empty-string } $data */
-            $data = json_decode($results[0]['payload'], true);
-
-            $job = new Job(
-                $results[0]['id'],
-                $data['type'],
-                $data['arguments'],
-            );
-
-            $updateStatement = $this->getDatabase()->prepare(
-                'UPDATE jobs
-                    SET attempts = attempts + 1, reserved_at = :reserved_at
-                    WHERE id = :id',
-            );
-
-            $updateStatement->bindValue(':id', $job->id);
-            $updateStatement->bindValue(':reserved_at', $this->formatTimestamp($now));
-            $updateStatement->execute();
-        } catch (\Throwable $e) {
-            $this->getDatabase()->exec('ROLLBACK');
-
-            throw $e;
-        }
-
-        $this->getDatabase()->exec('COMMIT');
-
-        return $job;
-    }
-
-    /**
-     * @throws JobNotFoundException
-     */
-    public function acknowledgeJob(Job $job): void
-    {
-        $this->deleteJob($job);
     }
 
     /**
@@ -214,7 +159,7 @@ class Queue
 
             $updateStatement->bindValue(
                 ':available_at',
-                $this->formatTimestamp(
+                $this->makeNormalisedTimestamp(
                     $this->clock
                         ->now()
                         ->add(new \DateInterval("PT{$interval}S")),
@@ -229,6 +174,61 @@ class Queue
         }
 
         $this->getDatabase()->exec('COMMIT');
+    }
+
+    public function getNextJob(): ?Job
+    {
+        $this->getDatabase()->exec('BEGIN IMMEDIATE');
+
+        try {
+            $now = $this->clock->now();
+            $selectStatement = $this->getDatabase()->prepare(
+                'SELECT id, payload FROM jobs
+                    WHERE reserved_at IS NULL
+                        AND available_at IS NOT NULL
+                        AND available_at <= :available_at
+                    LIMIT 1',
+            );
+
+            $selectStatement->bindValue(':available_at', $this->makeNormalisedTimestamp($now));
+            $selectStatement->execute();
+
+            /** @var array{ 'id': string, 'payload': string }[] $results */
+            $results = $selectStatement->fetchAll();
+
+            if (0 === \count($results)) {
+                $this->getDatabase()->exec('COMMIT');
+
+                return null;
+            }
+
+            /** @var array{ 'arguments': mixed, 'type': non-empty-string } $data */
+            $data = json_decode($results[0]['payload'], true);
+
+            $job = new Job(
+                $results[0]['id'],
+                $data['type'],
+                $data['arguments'],
+            );
+
+            $updateStatement = $this->getDatabase()->prepare(
+                'UPDATE jobs
+                    SET attempts = attempts + 1, reserved_at = :reserved_at
+                    WHERE id = :id',
+            );
+
+            $updateStatement->bindValue(':id', $job->id);
+            $updateStatement->bindValue(':reserved_at', $this->makeNormalisedTimestamp($now));
+            $updateStatement->execute();
+        } catch (\Throwable $e) {
+            $this->getDatabase()->exec('ROLLBACK');
+
+            throw $e;
+        }
+
+        $this->getDatabase()->exec('COMMIT');
+
+        return $job;
     }
 
     /**
@@ -284,7 +284,7 @@ class Queue
         $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id));
     }
 
-    private function formatTimestamp(\DateTimeInterface $date): string
+    private function makeNormalisedTimestamp(\DateTimeInterface $date): string
     {
         return \DateTimeImmutable::createFromInterface($date)
             ->setTimezone(new \DateTimeZone('UTC'))

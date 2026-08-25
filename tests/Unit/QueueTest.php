@@ -41,7 +41,7 @@ class QueueTest extends TestCase
     {
         $clock = new FrozenClock();
         $queue = new Queue(':memory:', $clock, new UuidFactory());
-        $scheduledJobType = $this->getRandomString(8);
+        $scheduledJobType = $this->makeRandomString(8);
 
         $queue->createJob(
             $scheduledJobType,
@@ -61,7 +61,7 @@ class QueueTest extends TestCase
     {
         $clock = new FrozenClock(new \DateTimeImmutable('2024-07-17T12:00:00+00:00'));
         $queue = new Queue(':memory:', $clock, new UuidFactory());
-        $scheduledJobType = $this->getRandomString(8);
+        $scheduledJobType = $this->makeRandomString(8);
 
         $queue->createJob(
             $scheduledJobType,
@@ -77,7 +77,7 @@ class QueueTest extends TestCase
     public function test_honours_retry_intervals_when_a_job_is_retried(): void
     {
         $clock = new FrozenClock();
-        $retryableJobType = $this->getRandomString(8);
+        $retryableJobType = $this->makeRandomString(8);
         $queue = new Queue(':memory:', $clock, new UuidFactory());
 
         $queue->createJob($retryableJobType, null, null, 60, 120);
@@ -104,14 +104,14 @@ class QueueTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         (new Queue(':memory:', new SystemClock(), new UuidFactory()))
-            ->createJob($this->getRandomString(8), null, null, -20);
+            ->createJob($this->makeRandomString(8), null, null, -20);
     }
 
     public function test_cannot_retry_a_job_that_is_already_rescheduled(): void
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $queue->createJob($this->getRandomString(8), null, null, 2, 5);
+        $queue->createJob($this->makeRandomString(8), null, null, 2, 5);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -124,7 +124,7 @@ class QueueTest extends TestCase
     {
         $queue = new Queue(':memory:', new SystemClock(), new UuidFactory());
 
-        $queue->createJob($this->getRandomString(8), null);
+        $queue->createJob($this->makeRandomString(8), null);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -151,7 +151,7 @@ class QueueTest extends TestCase
             $dispatcher,
         );
 
-        $queue->createJob($this->getRandomString(8), null);
+        $queue->createJob($this->makeRandomString(8), null);
 
         $job = $queue->getNextJob();
         $queue->failJob($job);
@@ -160,7 +160,7 @@ class QueueTest extends TestCase
         $this->assertEquals($dispatcher->latestEvent->jobId, $job->id);
     }
 
-    private function getRandomString(int $length): string
+    private function makeRandomString(int $length): string
     {
         return bin2hex((new Randomizer())->getBytes($length));
     }
