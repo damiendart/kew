@@ -38,7 +38,14 @@ class Queue
      */
     public function acknowledgeJob(Job $job): void
     {
-        $this->deleteJob($job);
+        $statement = $this->getDatabase()->prepare('DELETE FROM jobs WHERE id = :id');
+
+        $statement->bindValue(':id', $job->id);
+        $statement->execute();
+
+        if (0 === $statement->rowCount()) {
+            throw new JobNotFoundException($job->id);
+        }
     }
 
     /**
@@ -143,8 +150,18 @@ class Queue
             );
 
             if ($results[0]['attempts'] > \count($intervals)) {
-                $this->killJob($job, $throwable);
+                $statement = $this->getDatabase()->prepare(
+                    'UPDATE jobs
+                    SET available_at = NULL, reserved_at = NULL
+                    WHERE id = :id',
+                );
+
+                $statement->bindValue(':id', $job->id);
+                $statement->execute();
+
                 $this->getDatabase()->exec('COMMIT');
+
+                $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id, $throwable));
 
                 return;
             }
@@ -231,21 +248,6 @@ class Queue
         return $job;
     }
 
-    /**
-     * @throws JobNotFoundException
-     */
-    private function deleteJob(Job $job): void
-    {
-        $statement = $this->getDatabase()->prepare('DELETE FROM jobs WHERE id = :id');
-
-        $statement->bindValue(':id', $job->id);
-        $statement->execute();
-
-        if (0 === $statement->rowCount()) {
-            throw new JobNotFoundException($job->id);
-        }
-    }
-
     private function getDatabase(): \PDO
     {
         if (null === $this->sqliteDatabase) {
@@ -268,20 +270,6 @@ class Queue
         }
 
         return $this->sqliteDatabase;
-    }
-
-    private function killJob(Job $job, ?\Throwable $throwable = null): void
-    {
-        $statement = $this->getDatabase()->prepare(
-            'UPDATE jobs
-                SET available_at = NULL, reserved_at = NULL
-                WHERE id = :id',
-        );
-
-        $statement->bindValue(':id', $job->id);
-        $statement->execute();
-
-        $this->eventDispatcher?->dispatch(new JobKilledEvent($job->id, $throwable));
     }
 
     private function makeNormalisedTimestamp(\DateTimeInterface $date): string
