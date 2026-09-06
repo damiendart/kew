@@ -34,6 +34,8 @@ class Queue
     }
 
     /**
+     * Removes the job from the queue.
+     *
      * @throws JobNotFoundException
      */
     public function acknowledgeJob(Job $job): void
@@ -49,38 +51,37 @@ class Queue
     }
 
     /**
-     * Creates a job on the queue.
+     * Creates a job and adds it to the queue.
      *
-     * The `availableAt` parameter is stored as UTC, and future time
-     * zone rule changes are not handled. The number of times a job
-     * can be retried is inferred from the number of retry intervals
-     * provided.
+     * A job's `availableAt` parameter is normalised to UTC before it is
+     * saved to the database. The number of times a job can be attempted
+     * is inferred from how many attempt intervals are provided.
      *
      * @psalm-api
      *
      * @psalm-suppress TypeDoesNotContainType
      * @psalm-suppress DocblockTypeContradiction
      *
-     * @param non-empty-string $type An identifier used by workers to decide how to execute the job
-     * @param mixed $arguments JSON-serialisable arguments used by workers when executing the job
-     * @param ?\DateTimeInterface $availableAt The date and time when a job can be released for execution
-     * @param non-negative-int ...$retryIntervals Retry intervals, in seconds, between job attempts
+     * @param non-empty-string $type A job identifier
+     * @param mixed $arguments JSON-serialisable arguments associated with the job
+     * @param ?\DateTimeInterface $availableAt The date and time when a job can be released
+     * @param non-negative-int ...$attemptIntervals The number of seconds to wait between attempts
      */
     public function createJob(
         string $type,
         mixed $arguments,
         ?\DateTimeInterface $availableAt = null,
-        int ...$retryIntervals,
+        int ...$attemptIntervals,
     ): void {
         // @phpstan-ignore-next-line identical.alwaysFalse
         if ('' === $type) {
             throw new \InvalidArgumentException('A job type cannot be an empty string.');
         }
 
-        foreach ($retryIntervals as $interval) {
+        foreach ($attemptIntervals as $interval) {
             // @phpstan-ignore-next-line greater.alwaysFalse
             if (0 > $interval) {
-                throw new \InvalidArgumentException('A retry interval must be equal to or greater than zero seconds.');
+                throw new \InvalidArgumentException('An attempt interval must be equal to or greater than zero seconds.');
             }
         }
 
@@ -97,20 +98,29 @@ class Queue
         $uuid = $this->uuidFactory->uuid7();
 
         $statement = $this->getDatabase()->prepare(
-            'INSERT INTO jobs (id, created_at, available_at, retry_intervals, payload)
-                VALUES (:id, :created_at, :available_at, :retry_intervals, :payload)',
+            'INSERT INTO jobs (id, created_at, available_at, attempt_intervals, payload)
+                VALUES (:id, :created_at, :available_at, :attempt_intervals, :payload)',
         );
 
         $statement->bindValue(':available_at', $this->makeNormalisedTimestamp($availableAt ?? $createdAt));
         $statement->bindValue(':created_at', $this->makeNormalisedTimestamp($createdAt));
         $statement->bindValue(':id', $uuid);
         $statement->bindValue(':payload', $payload);
-        $statement->bindValue(':retry_intervals', json_encode($retryIntervals));
+        $statement->bindValue(':attempt_intervals', json_encode($attemptIntervals));
 
         $statement->execute();
     }
 
     /**
+     * Returns the job to the queue.
+     *
+     * If a job has exhausted all of its allowed attempts, it is marked
+     * as killed and will not be attempted again.
+     *
+     * @see JobKilledEvent Emitted when a job is killed.
+     *
+     * @param null|\Throwable $throwable The Throwable that caused the job to fail. Added to JobKilledEvent.
+     *
      * @throws JobAlreadyRescheduledException
      * @throws JobNotFoundException
      * @throws FailingKilledJobException
@@ -121,13 +131,13 @@ class Queue
 
         try {
             $selectStatement = $this->getDatabase()->prepare(
-                'SELECT attempts, available_at, reserved_at, retry_intervals FROM jobs WHERE id = :id',
+                'SELECT attempts, available_at, reserved_at, attempt_intervals FROM jobs WHERE id = :id',
             );
 
             $selectStatement->bindValue(':id', $job->id);
             $selectStatement->execute();
 
-            /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, retry_intervals: string }[] $results */
+            /** @var array{ attempts: positive-int, available_at: ?string, reserved_at: ?string, attempt_intervals: string }[] $results */
             $results = $selectStatement->fetchAll();
 
             if (0 === \count($results)) {
@@ -144,7 +154,7 @@ class Queue
 
             /** @var non-negative-int[] $intervals */
             $intervals = json_decode(
-                $results[0]['retry_intervals'],
+                $results[0]['attempt_intervals'],
                 true,
                 flags: JSON_THROW_ON_ERROR,
             );
@@ -193,6 +203,9 @@ class Queue
         $this->getDatabase()->exec('COMMIT');
     }
 
+    /**
+     * Gets the next job if one is available.
+     */
     public function getNextJob(): ?Job
     {
         $this->getDatabase()->exec('BEGIN IMMEDIATE');
@@ -263,7 +276,7 @@ class Queue
                     available_at TEXT,
                     reserved_at TEXT DEFAULT NULL,
                     attempts INT DEFAULT 0,
-                    retry_intervals TEXT DEFAULT NULL,
+                    attempt_intervals TEXT DEFAULT NULL,
                     payload TEXT
                 )',
             );
