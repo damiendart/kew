@@ -3,6 +3,7 @@
 # please refer to the accompanying "LICENCE" file.
 
 ---
+
 version: '3'
 
 output: 'prefixed'
